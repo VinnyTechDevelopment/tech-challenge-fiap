@@ -13,6 +13,10 @@ resource "kubernetes_config_map_v1" "app_config" {
     APP_FALLBACK_LOCALE     = "en"
     APP_FAKER_LOCALE        = "pt_BR"
     APP_MAINTENANCE_DRIVER  = "file"
+    # stack -> stderr: logs em JSON no stdout/stderr do container, o único
+    # lugar que "kubectl logs" e um coletor externo (New Relic etc.) enxergam.
+    LOG_CHANNEL             = "stack"
+    LOG_STACK               = "stderr"
     DB_CONNECTION           = "mysql"
     # Antes apontava pro Service "mysql" dentro do cluster (Minikube).
     # Agora aponta pro RDS provisionado no repositório infra-database.

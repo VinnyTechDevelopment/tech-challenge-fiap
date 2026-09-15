@@ -14,9 +14,29 @@ use App\Application\Customer\DTOs\UpdateCustomerDTO;
 use App\Presentation\Http\Requests\CreateCustomerRequest;
 use App\Presentation\Http\Requests\ListCustomerRequest;
 use App\Presentation\Http\Requests\UpdateCustomerRequest;
+use Illuminate\Http\Request;
 
 class CustomerController
 {
+    /**
+     * Perfil do próprio cliente autenticado via CPF (guard "auth.customer",
+     * JWT emitido pela Lambda lambda-auth-cpf) — não usa o guard "api".
+     */
+    public function me(Request $request, ShowCustomerUseCase $useCase)
+    {
+        $dto = new ShowCustomerDTO(id: $request->attributes->get('customer_id'));
+        $customer = $useCase->execute($dto);
+        return response()->json([
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'document' => $customer->document,
+            ],
+        ]);
+    }
+
     public function store(CreateCustomerRequest $request, CreateCustomerUseCase $useCase)
     {
         $dto = new CreateCustomerDTO(

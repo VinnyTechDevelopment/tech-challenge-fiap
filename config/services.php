@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // Segredo do JWT emitido pela Lambda lambda-auth-cpf (repositório
+    // separado). DIFERENTE do JWT_SECRET do jwt-auth/guard "api".
+    'customer_jwt' => [
+        'secret' => env('CUSTOMER_JWT_SECRET'),
+    ],
+
 ];

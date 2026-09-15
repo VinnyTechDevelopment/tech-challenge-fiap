@@ -18,6 +18,13 @@ Route::get('/service-order/reject/{token}', [ServiceOrderApprovalController::cla
 Route::post('/service-order/approval/{token}', [ServiceOrderApprovalController::class, 'handle']);
 
 Route::group([
+    'middleware' => 'auth.customer',
+    'prefix' => 'customer'
+], function () {
+    Route::get('/me', [CustomerController::class, 'me']);
+});
+
+Route::group([
     'middleware' => 'auth:api',
     'prefix' => 'customer'
 ], function () {
