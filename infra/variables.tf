@@ -26,9 +26,9 @@ variable "environment" {
 }
 
 variable "image_repository" {
-  description = "Repositório da imagem da aplicação (sem a tag)"
+  description = "Repositório da imagem da aplicação (sem a tag). Em deploy-eks.yml isso é sempre sobrescrito via TF_VAR_image_repository, calculado a partir de github.repository (minúsculo) — este default só vale pra apply manual local."
   type        = string
-  default     = "ghcr.io/viniciussalvarenga/tech-challenge"
+  default     = "ghcr.io/vinnytechdevelopment/tech-challenge-fiap"
 }
 
 variable "image_tag" {

@@ -99,6 +99,12 @@ jobs:
           fi
           echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
 
+          # GHCR exige path em minúsculas; github.repository preserva o case
+          # do owner (ex.: "VinnyTechDevelopment/tech-challenge-fiap"), então
+          # não dá pra usar direto — mesmo transform que build-ghcr.yml faz.
+          image_repository="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image_repository=$image_repository" >> "$GITHUB_OUTPUT"
+
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.0"
@@ -121,5 +127,6 @@ jobs:
           TF_VAR_namespace: ${{ steps.env.outputs.namespace }}
           TF_VAR_environment: ${{ steps.env.outputs.environment }}
           TF_VAR_image_tag: ${{ steps.env.outputs.image_tag }}
+          TF_VAR_image_repository: ${{ steps.env.outputs.image_repository }}
           TF_VAR_rollout_id: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: terraform apply -auto-approve
