@@ -14,6 +14,17 @@ variable "namespace" {
   default     = "postech"
 }
 
+variable "environment" {
+  description = "Ambiente de destino do apply. Controla apenas labels/observabilidade — o isolamento real entre produção e homologação vem de var.namespace e da state key usadas em cada apply (ver infra/deploy-eks.yml)."
+  type        = string
+  default     = "production"
+
+  validation {
+    condition     = contains(["production", "homolog"], var.environment)
+    error_message = "environment precisa ser \"production\" ou \"homolog\"."
+  }
+}
+
 variable "image_repository" {
   description = "Repositório da imagem da aplicação (sem a tag)"
   type        = string
@@ -66,6 +77,12 @@ variable "newrelic_license_key" {
 variable "newrelic_app_name" {
   type    = string
   default = "POS Tech"
+}
+
+variable "newrelic_enabled" {
+  description = "Liga os dashboards New Relic provisionados via infra/newrelic.tf (newrelic_one_dashboard). Fica false até existir conta/License Key/User API Key configuradas — ver README, seção Observabilidade."
+  type        = bool
+  default     = false
 }
 
 variable "mail_username" {

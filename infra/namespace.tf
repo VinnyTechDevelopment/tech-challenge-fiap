@@ -3,7 +3,8 @@ resource "kubernetes_namespace_v1" "postech" {
     name = var.namespace
 
     labels = {
-      app = "postech-pos"
+      app         = "postech-pos"
+      environment = var.environment
     }
   }
 }

@@ -1,15 +1,37 @@
 name: Deploy infra (EKS)
 
+# Deploy automático por branch (Fase 3): "main" -> produção, "homologacao" ->
+# homologação. As duas usam o MESMO cluster EKS e o MESMO RDS (decisão
+# tomada para não estourar o crédito do AWS Academy) — o isolamento entre
+# ambientes vem do namespace do Kubernetes e da state key do Terraform, que
+# mudam conforme a branch (ver step "Resolve ambiente" abaixo).
+#
+# O trigger é "workflow_run" da pipeline de build (não "push" direto): assim
+# só disparamos o apply depois que a imagem já foi publicada no GHCR com a
+# tag "sha-<7 chars>" que usamos aqui (mesmo padrão do deploy-minikube.yml
+# legado deste repositório).
+
 on:
   pull_request:
     branches: [main]
     paths: ["infra/**"]
+  workflow_run:
+    workflows: ["Build and Publish Docker image (GHCR)"]
+    types: [completed]
+    branches: [main, homologacao]
   workflow_dispatch:
     inputs:
       image_tag:
         description: "Tag da imagem a implantar"
         required: true
         default: "latest"
+      environment:
+        description: "Ambiente de destino"
+        type: choice
+        options:
+          - production
+          - homolog
+        default: production
 
 permissions:
   contents: read
@@ -17,6 +39,7 @@ permissions:
 
 jobs:
   terraform:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,10 +59,45 @@ jobs:
       TF_VAR_newrelic_license_key: ${{ secrets.NEWRELIC_LICENSE_KEY }}
       TF_VAR_ghcr_username: ${{ secrets.GHCR_USERNAME }}
       TF_VAR_ghcr_token: ${{ secrets.GHCR_TOKEN }}
-      TF_VAR_image_tag: ${{ github.event.inputs.image_tag || 'latest' }}
-      TF_VAR_rollout_id: ${{ github.sha }}
+      # Descomente as três linhas abaixo quando o New Relic estiver
+      # configurado de verdade (conta + License Key + User API Key + Account
+      # ID já nos secrets da organization — ver README, seção Observabilidade):
+      # NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
+      # NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
+      # TF_VAR_newrelic_enabled: "true"
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Resolve ambiente (branch -> namespace/state/tag)
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            branch="${{ github.event.workflow_run.head_branch }}"
+            image_tag="sha-$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.environment }}" = "homolog" ]; then
+              branch="homologacao"
+            else
+              branch="main"
+            fi
+            image_tag="${{ github.event.inputs.image_tag }}"
+          else
+            branch="main"
+            image_tag="latest"
+          fi
+
+          if [ "$branch" = "homologacao" ]; then
+            echo "environment=homolog" >> "$GITHUB_OUTPUT"
+            echo "namespace=postech-homolog" >> "$GITHUB_OUTPUT"
+            echo "state_key=app/homolog/terraform.tfstate" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+            echo "namespace=postech" >> "$GITHUB_OUTPUT"
+            echo "state_key=app/production/terraform.tfstate" >> "$GITHUB_OUTPUT"
+          fi
+          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -49,7 +107,7 @@ jobs:
         run: >
           terraform init
           -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
-          -backend-config="key=app/terraform.tfstate"
+          -backend-config="key=${{ steps.env.outputs.state_key }}"
           -backend-config="region=us-east-1"
           -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
 
@@ -58,5 +116,10 @@ jobs:
         run: terraform plan -no-color
 
       - name: Terraform Apply
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
+        env:
+          TF_VAR_namespace: ${{ steps.env.outputs.namespace }}
+          TF_VAR_environment: ${{ steps.env.outputs.environment }}
+          TF_VAR_image_tag: ${{ steps.env.outputs.image_tag }}
+          TF_VAR_rollout_id: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: terraform apply -auto-approve

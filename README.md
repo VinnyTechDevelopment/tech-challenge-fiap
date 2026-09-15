@@ -357,6 +357,32 @@ Como a tag da imagem (`image_tag`) faz parte do nome do Deployment e do Job de m
 make infra-apply IMAGE_TAG=sha-abc1234
 ```
 
+### Deploy automático (CI/CD) — homologação e produção
+
+O workflow `.github/workflows/deploy-eks.yml` roda `terraform apply` automaticamente, sem passo
+manual, disparado pelo `workflow_run` do `build-ghcr.yml` (ou seja: só depois que a imagem daquele
+commit já foi publicada no GHCR com a tag `sha-<7 chars>`):
+
+| Branch | Ambiente | Namespace | State key (S3) |
+|---|---|---|---|
+| `main` | Produção | `postech` | `app/production/terraform.tfstate` |
+| `homologacao` | Homologação | `postech-homolog` | `app/homolog/terraform.tfstate` |
+
+As duas branches usam o **mesmo cluster EKS e o mesmo RDS** (`infra-kubernetes-fiap` e
+`infra-database-fiap` não são duplicados) — decisão tomada para não estourar o crédito limitado do
+AWS Academy. O isolamento entre ambientes vem só do namespace do Kubernetes e da state key do
+Terraform, que o workflow calcula sozinho a partir da branch que disparou o build (step "Resolve
+ambiente" em `deploy-eks.yml`).
+
+Um Pull Request pra `main` que mexe em `infra/**` continua rodando só `terraform plan` (sem apply) —
+o merge é que dispara o deploy de verdade. `workflow_dispatch` continua disponível como fallback
+manual, com um input `environment` (`production`/`homolog`) pra escolher o alvo.
+
+Como no AWS Academy as credenciais (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN`)
+expiram em poucas horas, isso ainda exige atualizar esses três secrets a cada sessão nova do Lab —
+mas como um secret de nível **organization** (`VinnyTechDevelopment`) é compartilhado pelos 4
+repositórios, essa atualização passa a ser feita em um lugar só.
+
 ### Referência rápida (make)
 
 | Comando | Descrição |
@@ -370,3 +396,42 @@ make infra-apply IMAGE_TAG=sha-abc1234
 | `make k8s-down` | Alias de `infra-destroy` |
 | `make k8s-status` | Mostra pods e services do namespace |
 | `make k8s-urls` | Exibe as URLs de acesso (Network Load Balancer real da AWS) |
+
+## Observabilidade (New Relic)
+
+O código e a infraestrutura já estão prontos pro New Relic, mas **ainda não existe conta criada** —
+por isso tudo fica desligado por padrão (agente instalado mas inerte na imagem Docker, dashboards com
+`newrelic_enabled = false` em `infra/variables.tf`). O que já está pronto:
+
+- **Agente PHP**: instalado no `Dockerfile` (pacote `newrelic-php5`). Em runtime,
+  `docker/entrypoint.sh` só escreve a license key no `newrelic.ini` se a env var
+  `NEWRELIC_LICENSE_KEY` estiver setada — sem ela, o agente não reporta nada e a aplicação sobe
+  normalmente.
+- **Dashboards como código**: `infra/newrelic.tf` declara dois `newrelic_one_dashboard` (Ordens de
+  Serviço e Infraestrutura) cobrindo os itens pedidos na Fase 3 — volume diário de OS, tempo médio
+  por status, erros de integração, latência de API, CPU/memória do Kubernetes e uptime — atrás de
+  `count = var.newrelic_enabled ? 1 : 0`.
+
+### Passo a passo para ligar de verdade
+
+1. Crie uma conta free em [newrelic.com](https://newrelic.com/signup).
+2. Gere uma **License Key** (Account settings → API keys) — é o que o agente PHP usa para enviar
+   dados.
+3. Gere uma **User API Key** (mesmo local) — é o que o provider Terraform `newrelic/newrelic` usa
+   para criar os dashboards via API.
+4. Anote o **Account ID** (aparece no mesmo painel de API keys).
+5. Configure os secrets no nível da **organization** do GitHub (`VinnyTechDevelopment` → Settings →
+   Secrets and variables → Actions), compartilhados pelos 4 repositórios:
+   - `NEWRELIC_LICENSE_KEY` (usada pelo agente PHP, via Secret do K8s)
+   - `NEW_RELIC_API_KEY` (User API Key, usada só pelo provider Terraform)
+   - `NEW_RELIC_ACCOUNT_ID`
+6. Em `infra/deploy-eks.yml`, descomente as três linhas marcadas com `NEW_RELIC_*` /
+   `TF_VAR_newrelic_enabled` no `env:` do job.
+7. Rode `terraform apply` (via push em `main`/`homologacao`, ou `make infra-apply` local) — os
+   dashboards aparecem em New Relic One, e o agente PHP passa a reportar transações, erros e (via a
+   integração de Kubernetes do repositório `infra-kubernetes-fiap`) métricas de CPU/memória dos
+   pods.
+
+Depois que o agente estiver reportando dados de verdade, revise as queries NRQL em
+`infra/newrelic.tf` — foram escritas sem uma conta real pra validar contra, então nomes de evento ou
+atributo podem precisar de ajuste fino.
