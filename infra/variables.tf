@@ -50,6 +50,24 @@ variable "jwt_secret" {
   sensitive   = true
 }
 
+variable "customer_jwt_secret" {
+  description = "Segredo do JWT de cliente emitido pela Lambda lambda-auth-cpf (repositório separado). PRECISA ser idêntico ao var.customer_jwt_secret usado lá — NÃO é o mesmo valor de var.jwt_secret."
+  type        = string
+  sensitive   = true
+}
+
+variable "newrelic_license_key" {
+  description = "License key do New Relic. Opcional por enquanto — a app ainda não tem o agente instalado na imagem Docker, só a variável já fica disponível pro Secret."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "newrelic_app_name" {
+  type    = string
+  default = "POS Tech"
+}
+
 variable "mail_username" {
   type      = string
   sensitive = true

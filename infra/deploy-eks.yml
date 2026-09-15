@@ -30,8 +30,10 @@ jobs:
       TF_VAR_app_key: ${{ secrets.APP_KEY }}
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+      TF_VAR_customer_jwt_secret: ${{ secrets.CUSTOMER_JWT_SECRET }}
       TF_VAR_mail_username: ${{ secrets.MAIL_USERNAME }}
       TF_VAR_mail_password: ${{ secrets.MAIL_PASSWORD }}
+      TF_VAR_newrelic_license_key: ${{ secrets.NEWRELIC_LICENSE_KEY }}
       TF_VAR_ghcr_username: ${{ secrets.GHCR_USERNAME }}
       TF_VAR_ghcr_token: ${{ secrets.GHCR_TOKEN }}
       TF_VAR_image_tag: ${{ github.event.inputs.image_tag || 'latest' }}

@@ -17,6 +17,9 @@ resource "kubernetes_config_map_v1" "app_config" {
     # lugar que "kubectl logs" e um coletor externo (New Relic etc.) enxergam.
     LOG_CHANNEL             = "stack"
     LOG_STACK               = "stderr"
+    # Pronta pro dia em que o agente New Relic for instalado na imagem —
+    # hoje não faz nada sozinha (ver README, seção Observabilidade).
+    NEWRELIC_APPNAME        = var.newrelic_app_name
     DB_CONNECTION           = "mysql"
     # Antes apontava pro Service "mysql" dentro do cluster (Minikube).
     # Agora aponta pro RDS provisionado no repositório infra-database.
