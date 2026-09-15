@@ -25,15 +25,17 @@ resource "kubernetes_deployment_v1" "app" {
           name = kubernetes_secret_v1.ghcr_secret.metadata[0].name
         }
 
+        # Antes esperava o Service "mysql" dentro do cluster. Agora espera o
+        # RDS (fora do cluster) ficar acessível.
         init_container {
-          name    = "wait-for-mysql"
+          name    = "wait-for-db"
           image   = "busybox:1.36"
           command = ["sh", "-c", <<-EOT
-            until nc -z mysql 3306; do
-              echo "aguardando MySQL...";
+            until nc -z ${data.terraform_remote_state.database.outputs.rds_address} ${data.terraform_remote_state.database.outputs.rds_port}; do
+              echo "aguardando RDS...";
               sleep 3;
             done;
-            echo "MySQL disponivel."
+            echo "RDS disponivel."
           EOT
           ]
         }
@@ -106,12 +108,16 @@ resource "kubernetes_service_v1" "app" {
     name      = "postech-app"
     namespace = kubernetes_namespace_v1.postech.metadata[0].name
     labels    = { app = "postech-app" }
+
+    annotations = {
+      # No EKS isso cria de verdade um Network Load Balancer na AWS.
+      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
+    }
   }
 
-  # No Minikube, um Service LoadBalancer só recebe IP externo enquanto o
-  # 'minikube tunnel' está rodando à parte. Sem isso, o Terraform ficaria
-  # preso esperando um IP que nunca chega, até estourar o timeout de criação.
-  wait_for_load_balancer = false
+  # No Minikube isso ficava false porque só um 'minikube tunnel' local dava
+  # IP externo. No EKS o LoadBalancer é real, então deixamos esperar mesmo
+  # (comportamento padrão do provider, por isso o argumento nem aparece mais).
 
   spec {
     type     = "LoadBalancer"
@@ -186,5 +192,8 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "app" {
     }
   }
 
-  depends_on = [helm_release.metrics_server]
+  # O metrics-server agora vive no repositório infra-kubernetes, não aqui —
+  # por isso não há mais 'depends_on = [helm_release.metrics_server]'. Se o
+  # HPA reclamar de "unknown metrics" no primeiro apply, é só uma questão de
+  # tempo até o metrics-server publicar as métricas; não é erro de config.
 }

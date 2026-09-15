@@ -65,9 +65,11 @@ resource "kubernetes_service_v1" "swagger" {
     name      = "swagger-ui"
     namespace = kubernetes_namespace_v1.postech.metadata[0].name
     labels    = { app = "swagger-ui" }
-  }
 
-  wait_for_load_balancer = false
+    annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
+    }
+  }
 
   spec {
     type     = "LoadBalancer"
