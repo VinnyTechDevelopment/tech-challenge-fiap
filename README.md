@@ -25,6 +25,29 @@ Objetivos principais desta fase:
 
 ![Arquitetura proposta da solução](docs/Fase2/workflow.png)
 
+## Fase 3 — operação corporativa (AWS, serverless, observabilidade)
+
+A partir desta fase a solução deixa de rodar só em Minikube e passa a ser provisionada em 4
+repositórios separados, cada um com seu próprio CI/CD:
+
+- **`tech-challenge-fiap`** (este repositório) — API Laravel, agora implantada em EKS.
+- [`infra-kubernetes-fiap`](https://github.com/viniciussalvarenga/infra-kubernetes-fiap) — VPC + cluster EKS.
+- [`infra-database-fiap`](https://github.com/viniciussalvarenga/infra-database-fiap) — RDS MySQL gerenciado.
+- [`lambda-auth-cpf-fiap`](https://github.com/viniciussalvarenga/lambda-auth-cpf-fiap) — Function Serverless de autenticação por CPF + API Gateway.
+
+![Arquitetura da Fase 3](docs/Fase3/workflow.jpg)
+
+Documentação de arquitetura desta fase:
+
+- [Diagrama de sequência](docs/Fase3/diagrama-sequencia.md) — autenticação por CPF e abertura de OS.
+- [Justificativa do banco de dados + diagrama ER](docs/Fase3/banco-de-dados.md).
+- RFCs: [nuvem](docs/Fase3/rfcs/001-escolha-da-nuvem.md), [banco de dados](docs/Fase3/rfcs/002-escolha-do-banco-de-dados.md), [estratégia de autenticação](docs/Fase3/rfcs/003-estrategia-de-autenticacao.md).
+- ADRs: [padrão de comunicação](docs/Fase3/adrs/001-padrao-de-comunicacao.md), [uso de HPA](docs/Fase3/adrs/002-uso-de-hpa.md).
+
+Nesta API, a rota `GET /api/customer/me` é a única protegida pelo JWT de cliente (emitido pela Lambda
+`lambda-auth-cpf`, segredo `CUSTOMER_JWT_SECRET` — **diferente** do `JWT_SECRET` usado pela guard
+`api`/staff). Ver o RFC de estratégia de autenticação acima para o porquê de serem guards separadas.
+
 ## Stack
 - PHP 8.4
 - Laravel 13
