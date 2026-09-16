@@ -20,11 +20,29 @@ RUN apt-get update && apt-get install -y \
 # NEWRELIC_LICENSE_KEY não for setada em runtime (ver docker/entrypoint.sh) —
 # não há conta/License Key ainda, mas deixamos pronto pra ligar (ver README,
 # seção Observabilidade).
-RUN curl -sSL https://download.newrelic.com/548C16BF.gpg -o /etc/apt/trusted.gpg.d/newrelic.gpg \
- && echo "deb http://apt.newrelic.com/debian/ newrelic non-free" > /etc/apt/sources.list.d/newrelic.list \
+# A chave de assinatura do repositório da New Relic usa um certificado
+# autoassinado em SHA1, que o verificador de política do Debian trixie
+# (sqv) rejeita desde 2026-02-01 independente de como o keyring é
+# referenciado — não é algo ajustável do nosso lado. "trusted=yes" pula
+# a verificação só pra esse repositório específico (fonte oficial única,
+# via HTTPS, restrita a instalar o pacote newrelic-php5).
+RUN echo "deb [trusted=yes] https://apt.newrelic.com/debian/ newrelic non-free" > /etc/apt/sources.list.d/newrelic.list \
  && apt-get update \
- && NR_INSTALL_SILENT=1 apt-get install -y newrelic-php5 \
+ && apt-get install -y newrelic-php5 \
  && rm -rf /var/lib/apt/lists/*
+
+# O instalador genérico embutido no .deb (newrelic-install.sh) foi feito pro
+# layout do tarball oficial e não bate com onde o .deb realmente instala os
+# arquivos (procura /usr/lib/newrelic-php5/daemon, que aqui nem existe — o
+# daemon vai pra /usr/bin/newrelic-daemon) — rodá-lo só dá erro. Registramos
+# a extensão manualmente: newrelic-20240924.so é o build compatível com a
+# PHP API desta imagem (PHP 8.4 → API 20240924; confira com
+# `php -i | grep "PHP API"` se algum dia trocar a versão do PHP na FROM).
+RUN echo 'extension = "/usr/lib/newrelic-php5/agent/x64/newrelic-20240924.so"' > /usr/local/etc/php/conf.d/newrelic.ini \
+ && echo 'newrelic.license = ""' >> /usr/local/etc/php/conf.d/newrelic.ini \
+ && echo 'newrelic.appname = "POS Tech"' >> /usr/local/etc/php/conf.d/newrelic.ini \
+ && echo 'newrelic.daemon.address = "/tmp/.newrelic.sock"' >> /usr/local/etc/php/conf.d/newrelic.ini \
+ && echo 'newrelic.enabled = true' >> /usr/local/etc/php/conf.d/newrelic.ini
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 

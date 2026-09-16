@@ -129,13 +129,16 @@ jobs:
           DB_PORT=3306 \
           php artisan migrate --force
 
-        # 2. Executa os testes injetando uma APP_KEY e JWT_SECRET temporárias para o ambiente do CI
+        # 2. Executa os testes injetando as chaves temporárias para o ambiente do CI
+        # (CUSTOMER_JWT_SECRET adicionada na Fase 3 — sem ela, CustomerMeTest
+        # falha com "key must be a string when using hmac" ao gerar tokens de teste)
         kubectl exec -n postech "$APP_POD" -c app -- env \
           DB_CONNECTION=mysql \
           DB_HOST=mysql \
           DB_PORT=3306 \
           APP_KEY=${{ secrets.APP_KEY }} \
           JWT_SECRET=${{ secrets.JWT_SECRET }} \
+          CUSTOMER_JWT_SECRET=${{ secrets.CUSTOMER_JWT_SECRET }} \
           ./vendor/bin/phpunit --no-configuration tests/
 
 
