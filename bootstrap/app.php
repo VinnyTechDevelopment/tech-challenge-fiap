@@ -12,7 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'auth.customer' => \App\Presentation\Http\Middleware\AuthenticateCustomerJwt::class,
+        ]);
+
+        $middleware->append(\App\Presentation\Http\Middleware\AssignRequestId::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $e, Request $request) {

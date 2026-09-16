@@ -1,6 +1,6 @@
 .PHONY: help test coverage scan all up down bootstrap \
-	minikube-start minikube-stop infra-init infra-plan infra-apply infra-destroy infra-reset \
-	k8s-up k8s-down k8s-urls k8s-tunnel k8s-status
+	infra-init infra-plan infra-apply infra-destroy \
+	k8s-up k8s-down k8s-urls k8s-status eks-kubeconfig
 
 -include .env
 export
@@ -8,9 +8,13 @@ export
 COMPOSE      = docker compose
 COMPOSE_TEST = docker compose -f docker-compose.test.yml
 
-TF_DIR     = infra
-NAMESPACE  = postech
-IMAGE_TAG ?= latest
+TF_DIR            = infra
+NAMESPACE         = postech
+IMAGE_TAG        ?= latest
+AWS_REGION       ?= us-east-1
+EKS_CLUSTER_NAME ?= techchallenge-eks
+TF_STATE_BUCKET  ?=
+TF_LOCK_TABLE    ?=
 
 ## Exibe esta ajuda
 help:
@@ -114,22 +118,30 @@ zap-scan: ## Roda o ZAP passive scan autenticado (requer ZAP_EMAIL e ZAP_PASSWOR
 zap-scan-full: ## Roda o ZAP scan completo com active scan (~3 GB RAM, 30+ min)
 	ZAP_ACTIVE_SCAN=true $(MAKE) zap-scan
 
-## ── Kubernetes local (Minikube + Terraform) ─────────────────────────────────
+## ── Deploy em EKS (Terraform) ────────────────────────────────────────────────
+#
+# Pré-requisito: os repositórios infra-kubernetes e infra-database já aplicados
+# (o EKS e o RDS precisam existir antes deste). Ver os READMEs de cada um.
 
-minikube-start: ## Sobe o cluster Minikube e seleciona o context
-	minikube start
-	kubectl config use-context minikube
+eks-kubeconfig: ## Configura o kubectl para falar com o cluster EKS (requer credenciais AWS válidas)
+	aws eks update-kubeconfig --name $(EKS_CLUSTER_NAME) --region $(AWS_REGION)
 
-minikube-stop: ## Para o cluster Minikube (sem destruir os recursos do Terraform)
-	minikube stop
-
-infra-init: ## terraform init em infra/
-	@if [ ! -f $(TF_DIR)/terraform.tfvars ]; then \
-		echo "\033[31mErro: $(TF_DIR)/terraform.tfvars não encontrado.\033[0m"; \
-		echo "  Crie o arquivo com app_key, db_password, jwt_secret, ghcr_username, ghcr_token etc."; \
+infra-init: ## terraform init em infra/ (backend S3 remoto, compartilhado com infra-kubernetes/infra-database)
+	@if [ -z "$(TF_STATE_BUCKET)" ] || [ -z "$(TF_LOCK_TABLE)" ]; then \
+		echo "\033[31mErro: defina TF_STATE_BUCKET e TF_LOCK_TABLE (os mesmos valores usados nos repositórios infra-kubernetes e infra-database).\033[0m"; \
+		echo "  Exemplo: TF_STATE_BUCKET=meu-bucket TF_LOCK_TABLE=minha-tabela make infra-init"; \
 		exit 1; \
 	fi
-	cd $(TF_DIR) && terraform init
+	@if [ ! -f $(TF_DIR)/terraform.tfvars ]; then \
+		echo "\033[31mErro: $(TF_DIR)/terraform.tfvars não encontrado.\033[0m"; \
+		echo "  Crie o arquivo com tf_state_bucket, app_key, db_password, jwt_secret, customer_jwt_secret, ghcr_username, ghcr_token etc."; \
+		exit 1; \
+	fi
+	cd $(TF_DIR) && terraform init \
+		-backend-config="bucket=$(TF_STATE_BUCKET)" \
+		-backend-config="key=app/terraform.tfstate" \
+		-backend-config="region=$(AWS_REGION)" \
+		-backend-config="dynamodb_table=$(TF_LOCK_TABLE)"
 
 infra-plan: ## terraform plan (aceita IMAGE_TAG=<tag>, default: latest)
 	cd $(TF_DIR) && terraform plan -var="image_tag=$(IMAGE_TAG)"
@@ -137,44 +149,26 @@ infra-plan: ## terraform plan (aceita IMAGE_TAG=<tag>, default: latest)
 infra-apply: ## terraform apply (aceita IMAGE_TAG=<tag>, default: latest)
 	cd $(TF_DIR) && terraform apply -var="image_tag=$(IMAGE_TAG)"
 
-infra-destroy: ## Remove toda a stack provisionada pelo Terraform
+infra-destroy: ## Remove toda a stack provisionada por este repositório no EKS (não afeta o RDS nem o cluster em si)
 	cd $(TF_DIR) && terraform destroy
 
-infra-reset: ## Limpeza forçada: apaga namespace, PV e dados do MySQL no host do minikube (bypassa o Terraform)
-	@echo "\033[33mIsso vai apagar o namespace '$(NAMESPACE)', o PV 'mysql-pv' e TODOS os dados do MySQL local.\033[0m"
-	@printf "Digite 'reset' para confirmar: "; \
-	read confirm; \
-	if [ "$$confirm" != "reset" ]; then \
-		echo "Cancelado."; \
-		exit 1; \
-	fi
-	kubectl delete namespace $(NAMESPACE) --ignore-not-found
-	kubectl delete pv mysql-pv --ignore-not-found
-	for node in $$(minikube node list | awk '{print $$1}'); do \
-		minikube ssh -n $$node -- sudo rm -rf /tmp/postech-mysql; \
-	done
-	@echo "\033[32mReset concluído.\033[0m Rode 'make infra-apply' para recriar a stack do zero."
-
-k8s-up: minikube-start infra-init infra-apply ## Sobe minikube + aplica toda a stack via Terraform
+k8s-up: infra-init infra-apply ## infra-init + infra-apply em sequência
 	@$(MAKE) k8s-urls
 
-k8s-down: infra-destroy minikube-stop ## Destroi a stack via Terraform e para o Minikube
+k8s-down: infra-destroy ## Alias de infra-destroy
 
-k8s-status: ## Mostra pods e services do namespace
+k8s-status: ## Mostra pods e services do namespace (requer 'make eks-kubeconfig' antes)
 	kubectl get pods -n $(NAMESPACE)
 	kubectl get svc -n $(NAMESPACE)
 
-k8s-urls: ## Exibe as URLs de acesso (requer 'minikube tunnel' rodando em outro terminal)
-	@ip=$$(kubectl get svc postech-app -n $(NAMESPACE) -o jsonpath='{.status.loadBalancer.ingress[0].ip}'); \
-	if [ -z "$$ip" ]; then \
-		echo "\033[31mEXTERNAL-IP ainda vazio. Rode 'make k8s-tunnel' em outro terminal e tente de novo.\033[0m"; \
+k8s-urls: ## Exibe as URLs de acesso (Network Load Balancer real da AWS — sem tunnel, mas o DNS pode levar alguns minutos para propagar)
+	@app_host=$$(kubectl get svc postech-app -n $(NAMESPACE) -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'); \
+	if [ -z "$$app_host" ]; then \
+		echo "\033[31mEXTERNAL-IP/hostname ainda vazio. O NLB da AWS leva alguns minutos para ficar pronto; tente de novo em breve.\033[0m"; \
 		exit 1; \
 	fi; \
-	echo "App:     http://$$ip:$$(kubectl get svc postech-app -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].port}')"; \
-	echo "Swagger: http://$$(kubectl get svc swagger-ui -n $(NAMESPACE) -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):$$(kubectl get svc swagger-ui -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].port}')"
-
-k8s-tunnel: ## Abre o túnel do Minikube para expor os LoadBalancers (roda em foreground)
-	minikube tunnel
+	echo "App:     http://$$app_host:$$(kubectl get svc postech-app -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].port}')"; \
+	echo "Swagger: http://$$(kubectl get svc swagger-ui -n $(NAMESPACE) -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):$$(kubectl get svc swagger-ui -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].port}')"
 
 ## ── Atalhos combinados ───────────────────────────────────────────────────────
 

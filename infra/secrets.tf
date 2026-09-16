@@ -7,11 +7,13 @@ resource "kubernetes_secret_v1" "app_secret" {
   type = "Opaque"
 
   data = {
-    APP_KEY       = var.app_key
-    DB_PASSWORD   = var.db_password
-    JWT_SECRET    = var.jwt_secret
-    MAIL_USERNAME = var.mail_username
-    MAIL_PASSWORD = var.mail_password
+    APP_KEY              = var.app_key
+    DB_PASSWORD          = var.db_password
+    JWT_SECRET           = var.jwt_secret
+    CUSTOMER_JWT_SECRET  = var.customer_jwt_secret
+    MAIL_USERNAME        = var.mail_username
+    MAIL_PASSWORD        = var.mail_password
+    NEWRELIC_LICENSE_KEY = var.newrelic_license_key
   }
 }
 

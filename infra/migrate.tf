@@ -28,14 +28,14 @@ resource "kubernetes_job_v1" "migrate" {
         }
 
         init_container {
-          name    = "wait-for-mysql"
+          name    = "wait-for-db"
           image   = "busybox:1.36"
           command = ["sh", "-c", <<-EOT
-            until nc -z mysql 3306; do
-              echo "aguardando MySQL...";
+            until nc -z ${data.terraform_remote_state.database.outputs.rds_address} ${data.terraform_remote_state.database.outputs.rds_port}; do
+              echo "aguardando RDS...";
               sleep 3;
             done;
-            echo "MySQL disponivel."
+            echo "RDS disponivel."
           EOT
           ]
         }
@@ -78,5 +78,7 @@ resource "kubernetes_job_v1" "migrate" {
     create = "4m"
   }
 
-  depends_on = [kubernetes_deployment_v1.mysql, kubernetes_service_v1.mysql]
+  # Antes também dependia do Deployment/Service do MySQL dentro do cluster;
+  # agora o banco é externo (RDS), então a dependência é só o init container
+  # acima checando a disponibilidade.
 }
