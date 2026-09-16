@@ -44,7 +44,15 @@ resource "kubernetes_deployment_v1" "app" {
           name              = "app"
           image             = "${var.image_repository}:${var.image_tag}"
           image_pull_policy = "Always"
-          command           = ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+          # Sem "command" aqui de propósito: no Kubernetes, container.command
+          # sobrescreve o ENTRYPOINT da imagem Docker inteiro (não só o CMD),
+          # o que pulava o docker/entrypoint.sh — e era ele quem escrevia a
+          # NEWRELIC_LICENSE_KEY de verdade no newrelic.ini antes de subir o
+          # PHP. Resultado: newrelic.license sempre ficava "" em produção,
+          # mesmo com o secret certo no ambiente. Deixando o ENTRYPOINT e o
+          # CMD da própria imagem rodarem (CMD já é exatamente esse mesmo
+          # "php artisan serve ..."), o entrypoint roda primeiro e faz o sed
+          # antes do exec.
 
           port {
             container_port = 8000
