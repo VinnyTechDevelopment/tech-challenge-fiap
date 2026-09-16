@@ -235,7 +235,7 @@ do Terraform (`kubernetes_namespace_v1`, `kubernetes_deployment_v1`, `kubernetes
 | **EKS** (`infra-kubernetes-fiap`) | Cluster Kubernetes gerenciado pela AWS, com node group autoescalável. |
 | **RDS** (`infra-database-fiap`) | MySQL 8.0 gerenciado, na mesma VPC do EKS. |
 | **Terraform** (`infra/`, este repositório) | Namespace, ConfigMaps, Secrets, Job de migration, Deployment/Service/HPA da aplicação e do Swagger — tudo que é específico do Laravel, lendo cluster e banco via `terraform_remote_state`. |
-| **GitHub Actions** | `build-ghcr.yml` builda e publica a imagem no GHCR. `deploy-eks.yml` roda `terraform plan` em Pull Requests (path `infra/**`) e `terraform apply` sob demanda (`workflow_dispatch`), contra o EKS real. (`deploy-minikube.yml` ainda existe no repositório, mas é um workflow legado, preso a um runner self-hosted específico — não faz parte do fluxo atual.) |
+| **GitHub Actions** | `build-ghcr.yml` builda e publica a imagem no GHCR a cada push. `.github/workflows/deploy-eks.yml` roda `terraform plan` em Pull Requests (path `infra/**`) e `terraform apply` automático — via `workflow_run`, assim que a imagem termina de ser publicada — quando o push é em `main` (produção) ou `homologacao` (homologação); `workflow_dispatch` continua disponível como fallback manual. |
 
 ### Docker Compose vs EKS — quando usar cada um
 
