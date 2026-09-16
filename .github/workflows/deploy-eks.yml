@@ -83,18 +83,22 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             branch="${{ github.event.workflow_run.head_branch }}"
-            image_tag="sha-$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
+            short_sha="$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
+            image_tag="sha-${short_sha}"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ "${{ github.event.inputs.environment }}" = "homolog" ]; then
               branch="homologacao"
             else
               branch="main"
             fi
+            short_sha="$(echo "${{ github.sha }}" | cut -c1-7)"
             image_tag="${{ github.event.inputs.image_tag }}"
           else
             branch="main"
+            short_sha="$(echo "${{ github.sha }}" | cut -c1-7)"
             image_tag="latest"
           fi
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
 
           if [ "$branch" = "homologacao" ]; then
             echo "environment=homolog" >> "$GITHUB_OUTPUT"
@@ -136,5 +140,10 @@ jobs:
           TF_VAR_environment: ${{ steps.env.outputs.environment }}
           TF_VAR_image_tag: ${{ steps.env.outputs.image_tag }}
           TF_VAR_image_repository: ${{ steps.env.outputs.image_repository }}
-          TF_VAR_rollout_id: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # Curto de propósito: o nome do Job de migration concatena
+          # "app-migrate-" + image_tag + rollout_id, e o Kubernetes injeta
+          # esse nome como label "job-name" nos pods (limite de 63 bytes por
+          # valor de label). O SHA completo (40 chars) estourava esse limite
+          # por 1 caractere — confirmado em produção.
+          TF_VAR_rollout_id: ${{ steps.env.outputs.short_sha }}
         run: terraform apply -auto-approve
