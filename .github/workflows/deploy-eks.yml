@@ -59,11 +59,19 @@ jobs:
       TF_VAR_newrelic_license_key: ${{ secrets.NEWRELIC_LICENSE_KEY }}
       TF_VAR_ghcr_username: ${{ secrets.GHCR_USERNAME }}
       TF_VAR_ghcr_token: ${{ secrets.GHCR_TOKEN }}
-      # Descomente as três linhas abaixo quando o New Relic estiver
-      # configurado de verdade (conta + License Key + User API Key + Account
-      # ID já nos secrets da organization — ver README, seção Observabilidade):
-      # NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
-      # NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
+      # O provider newrelic (infra/newrelic.tf) exige api_key/account_id no
+      # schema dele — sem essas env vars presentes E não-vazias, o Terraform
+      # fica preso pedindo input interativo pra elas, e como o runner não tem
+      # TTY, trava pra sempre em vez de falhar rápido (mesmo problema que já
+      # vimos com var.lab_role_arn no infra-kubernetes-fiap; confirmado com um
+      # teste isolado — string vazia NÃO evita o prompt, precisa de um valor
+      # de verdade, mesmo que fictício). Usa o secret real quando existir,
+      # senão cai num valor fictício — newrelic_enabled continua false por
+      # padrão, então esse valor nunca é usado pra chamar a API de verdade.
+      NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY || 'NRAK-PLACEHOLDER-ATE-TER-CONTA' }}
+      NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID || '0000000' }}
+      # Descomente quando tiver a conta de verdade (API Key + Account ID já
+      # nos dois secrets acima) pra ligar os dashboards como código:
       # TF_VAR_newrelic_enabled: "true"
     steps:
       - uses: actions/checkout@v4
