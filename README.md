@@ -23,18 +23,6 @@ Objetivos principais desta fase:
 
 ## Desenho da arquitetura proposta
 
-![Arquitetura proposta da solução](docs/Fase2/workflow.png)
-
-## Fase 3 — operação corporativa (AWS, serverless, observabilidade)
-
-A partir desta fase a solução deixa de rodar só em Minikube e passa a ser provisionada em 4
-repositórios separados, cada um com seu próprio CI/CD:
-
-- **`tech-challenge-fiap`** (este repositório) — API Laravel, agora implantada em EKS.
-- [`infra-kubernetes-fiap`](https://github.com/viniciussalvarenga/infra-kubernetes-fiap) — VPC + cluster EKS.
-- [`infra-database-fiap`](https://github.com/viniciussalvarenga/infra-database-fiap) — RDS MySQL gerenciado.
-- [`lambda-auth-cpf-fiap`](https://github.com/viniciussalvarenga/lambda-auth-cpf-fiap) — Function Serverless de autenticação por CPF + API Gateway.
-
 ![Arquitetura da Fase 3](docs/Fase3/workflow.jpg)
 
 Documentação de arquitetura desta fase:
