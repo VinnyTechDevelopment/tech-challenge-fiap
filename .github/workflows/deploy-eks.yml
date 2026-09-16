@@ -8,8 +8,7 @@ name: Deploy infra (EKS)
 #
 # O trigger é "workflow_run" da pipeline de build (não "push" direto): assim
 # só disparamos o apply depois que a imagem já foi publicada no GHCR com a
-# tag "sha-<7 chars>" que usamos aqui (mesmo padrão do deploy-minikube.yml
-# legado deste repositório).
+# tag "sha-<7 chars>" que usamos aqui.
 
 on:
   pull_request:
