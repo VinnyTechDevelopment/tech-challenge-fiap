@@ -1,0 +1,30 @@
+meta {
+  name: CpfAuth
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{apiGatewayUrl}}/auth/cpf
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "cpf": "52998224725"
+  }
+}
+
+script:post-response {
+  bru.setVar('customerToken', res.getBody().token)
+}
+
+tests {
+  res.getBody()
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
