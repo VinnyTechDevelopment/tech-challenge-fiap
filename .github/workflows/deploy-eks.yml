@@ -70,9 +70,9 @@ jobs:
       # padrão, então esse valor nunca é usado pra chamar a API de verdade.
       NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY || 'NRAK-PLACEHOLDER-ATE-TER-CONTA' }}
       NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID || '0000000' }}
-      # Descomente quando tiver a conta de verdade (API Key + Account ID já
-      # nos dois secrets acima) pra ligar os dashboards como código:
-      # TF_VAR_newrelic_enabled: "true"
+      # API Key + Account ID já nos secrets acima — dashboards como código
+      # ligados de verdade.
+      TF_VAR_newrelic_enabled: "true"
     steps:
       - uses: actions/checkout@v4
         with:
