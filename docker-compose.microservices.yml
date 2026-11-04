@@ -1,0 +1,164 @@
+# Ambiente local COMPLETO da Fase 4: os 3 microsserviços + bancos + mensageria.
+#
+# Pré-requisito: os repositórios clonados lado a lado:
+#   ./tech-challenge-fiap   (os-service — este repositório)
+#   ./billing-service-fiap
+#   ./execution-service-fiap
+#
+# Subir:   docker compose -f docker-compose.microservices.yml up -d --build
+# Portas:  os-service :8080 | execution-service :8083 | billing-service :8084
+#          LocalStack (SQS + DynamoDB) :4566
+#
+# Pagamento usa o gateway "fake" (link de pagamento = endpoint /simulate do
+# billing). Para usar o sandbox do Mercado Pago, defina PAYMENT_GATEWAY e
+# MERCADOPAGO_ACCESS_TOKEN no serviço billing-app.
+
+x-dev-secrets: &dev-secrets
+  JWT_SECRET: dev-staff-jwt-secret-troque-em-producao-0123456789abcdef
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_ENDPOINT_URL: http://localstack:4566
+  MESSAGING_DRIVER: sqs
+  MESSAGING_QUEUE_PREFIX: local
+  LOG_CHANNEL: stderr
+  APP_ENV: local
+  APP_DEBUG: "true"
+
+x-os-env: &os-env
+  <<: *dev-secrets
+  APP_NAME: os-service
+  APP_KEY: base64:Wm9vcGVyLWRldi1rZXktb3Mtc2VydmljZS0wMDAwMDA=
+  APP_URL: http://localhost:8080
+  DB_CONNECTION: mysql
+  DB_HOST: os-db
+  DB_DATABASE: os
+  DB_USERNAME: os
+  DB_PASSWORD: os
+  CACHE_STORE: file
+  QUEUE_CONNECTION: sync
+  MAIL_MAILER: log
+  CUSTOMER_JWT_SECRET: dev-customer-jwt-secret-troque-em-producao-0123
+  INTERNAL_API_TOKEN: dev-internal-token
+  EXECUTION_SERVICE_URL: http://execution-app:8000
+  NEWRELIC_APPNAME: os-service
+
+x-billing-env: &billing-env
+  <<: *dev-secrets
+  APP_NAME: billing-service
+  APP_KEY: base64:Wm9vcGVyLWRldi1rZXktYmlsbGluZy1zZXJ2aWNlLTA=
+  DB_CONNECTION: mysql
+  DB_HOST: billing-db
+  DB_DATABASE: billing
+  DB_USERNAME: billing
+  DB_PASSWORD: billing
+  CACHE_STORE: file
+  SESSION_DRIVER: array
+  BILLING_PUBLIC_URL: http://localhost:8084
+  PAYMENT_GATEWAY: fake
+  NEWRELIC_APPNAME: billing-service
+
+x-execution-env: &execution-env
+  <<: *dev-secrets
+  APP_NAME: execution-service
+  APP_KEY: base64:Wm9vcGVyLWRldi1rZXktZXhlY3V0aW9uLXNlcnZpY2U=
+  DB_CONNECTION: sqlite
+  CACHE_STORE: file
+  SESSION_DRIVER: array
+  DYNAMODB_TABLE_PREFIX: local-execution
+  NEWRELIC_APPNAME: execution-service
+
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    ports: ["4566:4566"]
+    environment:
+      SERVICES: sqs,dynamodb
+    volumes:
+      - ./docker/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+    healthcheck:
+      test: ["CMD", "sh", "-c", "awslocal sqs get-queue-url --queue-name local-execution-commands"]
+      interval: 5s
+      retries: 30
+
+  # ── os-service (MySQL próprio) ─────────────────────────────────────────
+  os-db:
+    image: mysql:8.0
+    environment: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: os, MYSQL_USER: os, MYSQL_PASSWORD: os }
+    healthcheck: { test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"], interval: 5s, retries: 30 }
+
+  os-app:
+    build: .
+    image: local/os-service
+    ports: ["8080:8000"]
+    environment: *os-env
+    command: ["sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]
+    depends_on:
+      os-db: { condition: service_healthy }
+      localstack: { condition: service_healthy }
+
+  os-worker:
+    image: local/os-service
+    restart: on-failure  # sobe junto com a API; tenta de novo até as migrations rodarem
+    environment: *os-env
+    command: ["php", "artisan", "messaging:consume"]
+    depends_on: [os-app]
+
+  os-outbox:
+    image: local/os-service
+    restart: on-failure  # sobe junto com a API; tenta de novo até as migrations rodarem
+    environment: *os-env
+    command: ["php", "artisan", "outbox:relay"]
+    depends_on: [os-app]
+
+  os-scheduler:
+    image: local/os-service
+    restart: on-failure  # sobe junto com a API; tenta de novo até as migrations rodarem
+    environment: *os-env
+    command: ["php", "artisan", "schedule:work"]
+    depends_on: [os-app]
+
+  # ── billing-service (MySQL próprio) ────────────────────────────────────
+  billing-db:
+    image: mysql:8.0
+    environment: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: billing, MYSQL_USER: billing, MYSQL_PASSWORD: billing }
+    healthcheck: { test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"], interval: 5s, retries: 30 }
+
+  billing-app:
+    build: ../billing-service-fiap
+    image: local/billing-service
+    ports: ["8084:8000"]
+    environment: *billing-env
+    command: ["sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]
+    depends_on:
+      billing-db: { condition: service_healthy }
+      localstack: { condition: service_healthy }
+
+  billing-worker:
+    image: local/billing-service
+    restart: on-failure  # sobe junto com a API; tenta de novo até as migrations rodarem
+    environment: *billing-env
+    command: ["php", "artisan", "messaging:consume"]
+    depends_on: [billing-app]
+
+  billing-outbox:
+    image: local/billing-service
+    restart: on-failure  # sobe junto com a API; tenta de novo até as migrations rodarem
+    environment: *billing-env
+    command: ["php", "artisan", "outbox:relay"]
+    depends_on: [billing-app]
+
+  # ── execution-service (DynamoDB próprio) ───────────────────────────────
+  execution-app:
+    build: ../execution-service-fiap
+    image: local/execution-service
+    ports: ["8083:8000"]
+    environment: *execution-env
+    command: ["sh", "-c", "php artisan dynamodb:create-tables && php artisan serve --host=0.0.0.0 --port=8000"]
+    depends_on:
+      localstack: { condition: service_healthy }
+
+  execution-worker:
+    image: local/execution-service
+    restart: on-failure  # sobe junto com a API; tenta de novo até as migrations rodarem
+    environment: *execution-env
+    command: ["php", "artisan", "messaging:consume"]
+    depends_on: [execution-app]

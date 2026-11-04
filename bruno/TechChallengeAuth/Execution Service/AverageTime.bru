@@ -1,0 +1,16 @@
+meta {
+  name: Métrica: tempo médio por serviço
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{executionUrl}}/execution/metrics/average-execution-time
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

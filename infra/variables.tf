@@ -76,7 +76,7 @@ variable "newrelic_license_key" {
 
 variable "newrelic_app_name" {
   type    = string
-  default = "POS Tech"
+  default = "os-service"
 }
 
 variable "newrelic_enabled" {
@@ -122,3 +122,27 @@ variable "ghcr_email" {
 # metrics_server_chart_version     -> o metrics-server agora é provisionado
 #                                      uma única vez em infra-kubernetes,
 #                                      não por aplicação
+
+variable "internal_api_token" {
+  description = "Token compartilhado com a Lambda lambda-auth-cpf para o endpoint interno /api/internal/customers/by-document."
+  type        = string
+  sensitive   = true
+}
+
+variable "execution_service_url" {
+  description = "URL interna (DNS do cluster) do execution-service, usada na consulta síncrona ao catálogo."
+  type        = string
+  default     = "http://execution-app.execution.svc.cluster.local:8080"
+}
+
+variable "saga_approval_timeout_minutes" {
+  description = "Prazo para o cliente aprovar o orçamento antes da saga compensar."
+  type        = number
+  default     = 2880
+}
+
+variable "saga_payment_timeout_minutes" {
+  description = "Prazo para o pagamento ser confirmado antes da saga compensar."
+  type        = number
+  default     = 1440
+}

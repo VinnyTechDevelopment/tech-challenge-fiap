@@ -1,0 +1,16 @@
+meta {
+  name: Histórico de status + passos da Saga
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/service-order/{{serviceOrderId}}/history
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

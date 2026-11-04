@@ -1,0 +1,20 @@
+meta {
+  name: Cliente aprova orçamento (link do e-mail)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{billingUrl}}/billing/quotes/{{approvalToken}}/approve
+  body: none
+  auth: none
+}
+
+docs {
+  O link completo aparece em saga.approval_url (GET /service-order/{id}). Resposta traz payment_url (Mercado Pago ou simulador).
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

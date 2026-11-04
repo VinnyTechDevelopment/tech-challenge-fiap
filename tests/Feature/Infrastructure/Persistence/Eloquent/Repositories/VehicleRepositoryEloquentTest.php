@@ -19,7 +19,7 @@ class VehicleRepositoryEloquentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->repository = new VehicleRepositoryEloquent();
+        $this->repository = new VehicleRepositoryEloquent;
     }
 
     private function authenticateUser(): User

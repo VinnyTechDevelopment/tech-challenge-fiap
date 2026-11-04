@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class CustomerModel extends Model
 {
     protected $table = 'customers';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -17,6 +19,6 @@ class CustomerModel extends Model
         'phone',
         'document',
         'created_user_id',
-        'updated_user_id'
+        'updated_user_id',
     ];
 }

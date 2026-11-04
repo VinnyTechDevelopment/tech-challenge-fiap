@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 class UpdateVehicleUseCaseTest extends TestCase
 {
     private MockInterface $repository;
+
     private UpdateVehicleUseCase $useCase;
 
     protected function setUp(): void

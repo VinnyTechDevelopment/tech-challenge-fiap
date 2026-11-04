@@ -2,132 +2,71 @@
 
 namespace App\Application\ServiceOrder\UseCases;
 
+use App\Application\Saga\ServiceOrderSagaOrchestrator;
 use App\Application\ServiceOrder\DTOs\CreateServiceOrderDTO;
-use App\Application\ServiceOrderItem\DTOs\CreateServiceOrderItemDTO;
-use App\Application\ServiceOrderService\DTOs\CreateServiceOrderServiceDTO;
+use App\Application\ServiceOrder\Ports\CatalogClientInterface;
 use App\Domain\Customer\Interfaces\CustomerRepositoryInterface;
-use App\Domain\Item\Interfaces\ItemRepositoryInterface;
-use App\Domain\Service\Interfaces\ServiceRepositoryInterface;
+use App\Domain\Saga\Entities\ServiceOrderSaga;
 use App\Domain\ServiceOrder\Entities\ServiceOrder;
-use App\Domain\ServiceOrder\Interfaces\ServiceOrderRepositoryInterface;
 use App\Domain\ServiceOrder\Events\ServiceOrderCreated;
-use App\Domain\ServiceOrderItem\Interfaces\ServiceOrderItemInterface;
-use App\Domain\ServiceOrderService\Interfaces\ServiceOrderServiceInterface;
+use App\Domain\ServiceOrder\Interfaces\ServiceOrderRepositoryInterface;
 use App\Domain\Vehicle\Interfaces\VehicleRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Abertura da OS = início da saga. A OS e o primeiro comando (CreateQuote,
+ * via outbox) são gravados na mesma transação.
+ */
 class CreateServiceOrderUseCase
 {
     public function __construct(
         private ServiceOrderRepositoryInterface $serviceOrderRepository,
         private CustomerRepositoryInterface $customerRepository,
-        private ServiceRepositoryInterface $serviceRepository,
-        private ItemRepositoryInterface $itemRepository,
-        private ServiceOrderItemInterface $serviceOrderItemRepository,
-        private ServiceOrderServiceInterface $serviceOrderServiceRepository,
-        private VehicleRepositoryInterface $vehicleRepository
+        private VehicleRepositoryInterface $vehicleRepository,
+        private CatalogClientInterface $catalog,
+        private ServiceOrderSagaOrchestrator $orchestrator,
     ) {}
 
-    public function execute(CreateServiceOrderDTO $dto): ServiceOrder
+    /**
+     * @return array{order: ServiceOrder, saga: ServiceOrderSaga}
+     */
+    public function execute(CreateServiceOrderDTO $dto): array
     {
-        $customer = $this->customerRepository->findById($dto->customerId);
+        $customer = $this->customerRepository->findById($dto->customerId)
+            ?? throw new \DomainException("Cliente '{$dto->customerId}' nao encontrado.");
 
-        if (!$customer) {
-            throw new \DomainException("Cliente '{$dto->customerId}' nao encontrado.");
-        }
+        $vehicle = $this->vehicleRepository->findById($dto->vehicleId)
+            ?? throw new \DomainException("Veiculo '{$dto->vehicleId}' nao encontrado.");
 
-        $vehicle = $this->vehicleRepository->findById($dto->vehicleId);
+        // Chamada síncrona ao execution-service: nome e preço vigentes.
+        $priced = $this->catalog->lookup($dto->services, $dto->items);
 
-        if (!$vehicle) {
-            throw new \DomainException("Veiculo '{$dto->vehicleId}' nao encontrado.");
-        }
-
-        $services = $this->resolveServices($dto->services);
-        $items = $this->resolveItems($dto->items);
-
-        $serviceOrder = ServiceOrder::create(
+        $order = ServiceOrder::create(
             customerId: $customer->id,
-            vehicleId: $dto->vehicleId,
-            services: $services,
-            items: $items
+            vehicleId: $vehicle->id,
+            services: array_map(static fn (array $s) => [
+                'service_id' => (string) $s['service_id'],
+                'name' => (string) $s['name'],
+                'quantity' => (float) $s['quantity'],
+                'unit_price' => (float) $s['unit_price'],
+            ], $priced['services']),
+            items: array_map(static fn (array $i) => [
+                'item_id' => (string) $i['item_id'],
+                'name' => (string) $i['name'],
+                'quantity' => (float) $i['quantity'],
+                'unit_price' => (float) $i['unit_price'],
+            ], $priced['items']),
         );
 
-        if ($dto->sendQuote) {
-            $serviceOrder->sendQuoteForApproval();
-        }
+        $saga = DB::transaction(function () use ($order): ServiceOrderSaga {
+            $this->serviceOrderRepository->save($order);
+            $this->serviceOrderRepository->recordStatusChange($order->id, null, $order->status, 'atendimento');
 
-        DB::transaction(function () use ($serviceOrder, $items, $services): void {
-            $this->serviceOrderRepository->save($serviceOrder);
-
-            foreach ($services as $service) {
-                $this->serviceOrderServiceRepository->createServiceOrderService(
-                    new CreateServiceOrderServiceDTO(
-                        $serviceOrder->id,
-                        (string) $service['service_id'],
-                        (int) $service['quantity'],
-                        (float) $service['unit_price'],
-                        null,
-                        null
-                    )
-                );
-            }
-
-            foreach ($items as $item) {
-                $this->serviceOrderItemRepository->createServiceOrderItem(
-                    new CreateServiceOrderItemDTO(
-                        service_order_id: $serviceOrder->id,
-                        item_id: (string) $item['item_id'],
-                        quantity: (int) $item['quantity'],
-                        price: (float) $item['unit_price']
-                    )
-                );
-            }
+            return $this->orchestrator->start($order);
         });
 
-        event(new ServiceOrderCreated($serviceOrder));
+        event(new ServiceOrderCreated($order));
 
-        return $serviceOrder;
-    }
-
-    private function resolveServices(array $services): array
-    {
-        return array_map(function (array $item): array {
-            $service = $this->serviceRepository->findById($item['service_id']);
-
-            if (!$service) {
-                throw new \DomainException("Servico '{$item['service_id']}' nao encontrado.");
-            }
-
-            return [
-                'service_id' => $service->id,
-                'name'       => $service->name,
-                'quantity'   => (float) $item['quantity'],
-                'unit_price' => $service->price,
-            ];
-        }, $services);
-    }
-
-    private function resolveItems(array $items): array
-    {
-        return array_map(function (array $item): array {
-            $itemId = (string) ($item['item_id'] ?? $item['item'] ?? '');
-
-            if ($itemId === '') {
-                throw new \DomainException('Item da OS sem identificador informado.');
-            }
-
-            $part = $this->itemRepository->findById($itemId);
-
-            if (!$part) {
-                throw new \DomainException("Peca '{$itemId}' nao encontrada.");
-            }
-
-            return [
-                'item_id' => $part->id,
-                'name' => $part->name,
-                'quantity' => (float) $item['quantity'],
-                'unit_price' => (float) ($part->unitPrice ?? 0.0),
-            ];
-        }, $items);
+        return ['order' => $order, 'saga' => $saga];
     }
 }

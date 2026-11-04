@@ -11,6 +11,7 @@ class AuthenticationTest extends TestCase
     use RefreshDatabase;
 
     private const VALID_CPF = '52998224725';
+
     private const VALID_CPF_2 = '73127709006';
 
     // -------------------------------------------------------------------------
@@ -20,10 +21,10 @@ class AuthenticationTest extends TestCase
     public function test_register_creates_user_and_returns_201(): void
     {
         $response = $this->postJson('/api/auth/register', [
-            'name'                  => 'João Silva',
-            'email'                 => 'joao@example.com',
-            'document'              => self::VALID_CPF,
-            'password'              => 'password123',
+            'name' => 'João Silva',
+            'email' => 'joao@example.com',
+            'document' => self::VALID_CPF,
+            'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
 
@@ -37,15 +38,15 @@ class AuthenticationTest extends TestCase
     public function test_register_returns_400_when_email_already_taken(): void
     {
         User::factory()->create([
-            'email'    => 'joao@example.com',
+            'email' => 'joao@example.com',
             'document' => self::VALID_CPF,
         ]);
 
         $this->postJson('/api/auth/register', [
-            'name'                  => 'Outro João',
-            'email'                 => 'joao@example.com',
-            'document'              => self::VALID_CPF_2,
-            'password'              => 'password123',
+            'name' => 'Outro João',
+            'email' => 'joao@example.com',
+            'document' => self::VALID_CPF_2,
+            'password' => 'password123',
             'password_confirmation' => 'password123',
         ])->assertStatus(400);
     }
@@ -53,15 +54,15 @@ class AuthenticationTest extends TestCase
     public function test_register_returns_400_when_document_already_taken(): void
     {
         User::factory()->create([
-            'email'    => 'primeiro@example.com',
+            'email' => 'primeiro@example.com',
             'document' => self::VALID_CPF,
         ]);
 
         $this->postJson('/api/auth/register', [
-            'name'                  => 'Segundo',
-            'email'                 => 'segundo@example.com',
-            'document'              => self::VALID_CPF,
-            'password'              => 'password123',
+            'name' => 'Segundo',
+            'email' => 'segundo@example.com',
+            'document' => self::VALID_CPF,
+            'password' => 'password123',
             'password_confirmation' => 'password123',
         ])->assertStatus(400);
     }
@@ -75,10 +76,10 @@ class AuthenticationTest extends TestCase
     public function test_register_returns_422_when_document_is_invalid_cpf(): void
     {
         $this->postJson('/api/auth/register', [
-            'name'                  => 'João',
-            'email'                 => 'joao@example.com',
-            'document'              => '00000000000',
-            'password'              => 'password123',
+            'name' => 'João',
+            'email' => 'joao@example.com',
+            'document' => '00000000000',
+            'password' => 'password123',
             'password_confirmation' => 'password123',
         ])->assertStatus(422);
     }
@@ -86,10 +87,10 @@ class AuthenticationTest extends TestCase
     public function test_register_returns_400_when_passwords_do_not_match(): void
     {
         $this->postJson('/api/auth/register', [
-            'name'                  => 'João',
-            'email'                 => 'joao@example.com',
-            'document'              => self::VALID_CPF,
-            'password'              => 'password123',
+            'name' => 'João',
+            'email' => 'joao@example.com',
+            'document' => self::VALID_CPF,
+            'password' => 'password123',
             'password_confirmation' => 'wrongpassword',
         ])->assertStatus(400);
     }
@@ -101,13 +102,13 @@ class AuthenticationTest extends TestCase
     public function test_login_returns_access_token_on_valid_credentials(): void
     {
         User::factory()->create([
-            'email'    => 'joao@example.com',
+            'email' => 'joao@example.com',
             'password' => bcrypt('password123'),
             'document' => self::VALID_CPF,
         ]);
 
         $response = $this->postJson('/api/auth/login', [
-            'email'    => 'joao@example.com',
+            'email' => 'joao@example.com',
             'password' => 'password123',
         ]);
 
@@ -119,13 +120,13 @@ class AuthenticationTest extends TestCase
     public function test_login_returns_401_on_wrong_password(): void
     {
         User::factory()->create([
-            'email'    => 'joao@example.com',
+            'email' => 'joao@example.com',
             'password' => bcrypt('password123'),
             'document' => self::VALID_CPF,
         ]);
 
         $this->postJson('/api/auth/login', [
-            'email'    => 'joao@example.com',
+            'email' => 'joao@example.com',
             'password' => 'wrongpassword',
         ])->assertStatus(401);
     }
@@ -133,7 +134,7 @@ class AuthenticationTest extends TestCase
     public function test_login_returns_401_for_unknown_email(): void
     {
         $this->postJson('/api/auth/login', [
-            'email'    => 'noone@example.com',
+            'email' => 'noone@example.com',
             'password' => 'password123',
         ])->assertStatus(401);
     }
@@ -179,19 +180,19 @@ class AuthenticationTest extends TestCase
     public function test_refresh_returns_new_token(): void
     {
         User::factory()->create([
-            'email'    => 'refresh@example.com',
+            'email' => 'refresh@example.com',
             'password' => bcrypt('password123'),
             'document' => self::VALID_CPF,
         ]);
 
         $loginResponse = $this->postJson('/api/auth/login', [
-            'email'    => 'refresh@example.com',
+            'email' => 'refresh@example.com',
             'password' => 'password123',
         ]);
 
         $token = $loginResponse->json('access_token');
 
-        $this->withHeader('Authorization', 'Bearer ' . $token)
+        $this->withHeader('Authorization', 'Bearer '.$token)
             ->postJson('/api/auth/refresh')
             ->assertStatus(200)
             ->assertJsonStructure(['access_token', 'token_type', 'expires_in']);

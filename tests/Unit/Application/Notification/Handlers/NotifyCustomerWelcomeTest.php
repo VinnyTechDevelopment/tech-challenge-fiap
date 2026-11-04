@@ -2,7 +2,6 @@
 
 namespace Tests\Unit\Application\Notification\Handlers;
 
-use Tests\TestCase;
 use App\Application\Notification\Handlers\SendWelcomeNotification;
 use App\Domain\Customer\Entities\Customer;
 use App\Domain\Customer\Events\CustomerCreated;
@@ -13,11 +12,14 @@ use App\Domain\Notification\ValueObjects\NotificationStatus;
 use Illuminate\Support\Str;
 use Mockery;
 use Mockery\MockInterface;
+use Tests\TestCase;
 
 class NotifyCustomerWelcomeTest extends TestCase
 {
     private MockInterface $repositoryMock;
+
     private MockInterface $serviceMock;
+
     private SendWelcomeNotification $handler;
 
     protected function setUp(): void
@@ -31,7 +33,7 @@ class NotifyCustomerWelcomeTest extends TestCase
         // Instanciamos o Handler com os Mocks
         $this->handler = new SendWelcomeNotification(
             $this->serviceMock,
-            $this->repositoryMock            
+            $this->repositoryMock
         );
     }
 
@@ -69,7 +71,7 @@ class NotifyCustomerWelcomeTest extends TestCase
                 return $notification->getStatus() === NotificationStatus::SENT;
             }));
 
-        // ACT (Agir)        
+        // ACT (Agir)
         $this->handler->handle($event);
 
         // ASSERT (Verificar)
@@ -77,9 +79,8 @@ class NotifyCustomerWelcomeTest extends TestCase
         $this->assertTrue(true);
     }
 
-    
     public function test_should_mark_as_failed_if_service_throws_exception(): void
-    {        
+    {
         // ARRANGE
         $customer = new Customer(
             Str::uuid()->toString(),
@@ -97,7 +98,7 @@ class NotifyCustomerWelcomeTest extends TestCase
         $this->serviceMock
             ->shouldReceive('send')
             ->once()
-            ->andThrow(new \Exception("Provider Offline"));
+            ->andThrow(new \Exception('Provider Offline'));
 
         // Expectativa: Deve salvar como FAILED
         $this->repositoryMock

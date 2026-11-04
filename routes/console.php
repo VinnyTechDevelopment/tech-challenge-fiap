@@ -1,8 +1,7 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Compensa sagas paradas esperando o cliente além do prazo (ver config/saga.php).
+// Roda no container "scheduler" do Deployment worker (php artisan schedule:work).
+Schedule::command('saga:timeouts')->everyMinute()->withoutOverlapping();

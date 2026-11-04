@@ -2,22 +2,23 @@
 
 namespace Tests\Unit\Application\Notification\Handlers;
 
-use Tests\TestCase;
-use App\Application\Notification\Handlers\NotifyServiceOrderStatus;
-use App\Domain\ServiceOrder\Events\ServiceOrderStatusChanged;
+use App\Application\Notification\Handlers\SendServiceOrderStatusNotification;
+use App\Domain\Notification\Entities\Notification as EntitiesNotification;
 use App\Domain\Notification\Interfaces\NotificationRepositoryInterface;
 use App\Domain\Notification\Interfaces\NotificationServiceInterface;
 use App\Domain\Notification\ValueObjects\NotificationStatus;
+use App\Domain\ServiceOrder\Entities\ServiceOrder;
+use App\Domain\ServiceOrder\Events\ServiceOrderStatusChanged;
 use Mockery;
 use Mockery\MockInterface;
-use App\Application\Notification\Handlers\SendServiceOrderStatusNotification;
-use App\Domain\Notification\Entities\Notification as EntitiesNotification;
-use App\Domain\ServiceOrder\Entities\ServiceOrder;
+use Tests\TestCase;
 
 class NotifyServiceOrderStatusTest extends TestCase
 {
     private NotificationRepositoryInterface&MockInterface $repositoryMock;
+
     private NotificationServiceInterface&MockInterface $serviceMock;
+
     private SendServiceOrderStatusNotification $handler;
 
     protected function setUp(): void
@@ -101,7 +102,7 @@ class NotifyServiceOrderStatusTest extends TestCase
         // Simula falha na infraestrutura (ex: e-mail indisponível)
         $this->serviceMock
             ->shouldReceive('send')
-            ->andThrow(new \Exception("SMTP Error"));
+            ->andThrow(new \Exception('SMTP Error'));
 
         // Expectativa: Salvar como FAILED no banco de histórico
         $this->repositoryMock

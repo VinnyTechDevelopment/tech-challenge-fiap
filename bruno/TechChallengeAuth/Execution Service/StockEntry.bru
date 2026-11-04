@@ -1,0 +1,23 @@
+meta {
+  name: Estoque: entrada
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{executionUrl}}/catalog/items/{{itemId}}/stock/entry
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "quantity": 10,
+    "reason": "Compra"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

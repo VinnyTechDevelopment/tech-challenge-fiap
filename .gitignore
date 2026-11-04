@@ -37,3 +37,9 @@ infra/*_override.tf
 infra/*_override.tf.json
 infra/terraform.tfvars
 infra/terraform.tfvars.json
+
+# Relatórios de teste (gerados no CI)
+coverage.xml
+junit.xml
+/.phpunit.cache
+/infra/.terraform/

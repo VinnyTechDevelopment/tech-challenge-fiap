@@ -2,15 +2,16 @@
 
 namespace App\Presentation\Http\Controllers;
 
+use App\Application\Customer\DTOs\CreateCustomerDTO;
+use App\Application\Customer\DTOs\ListCustomerDTO;
+use App\Application\Customer\DTOs\ShowCustomerDTO;
+use App\Application\Customer\DTOs\UpdateCustomerDTO;
 use App\Application\Customer\UseCases\CreateCustomerUseCase;
 use App\Application\Customer\UseCases\DeleteCustomerUseCase;
 use App\Application\Customer\UseCases\ListCustomerUseCase;
 use App\Application\Customer\UseCases\ShowCustomerUseCase;
 use App\Application\Customer\UseCases\UpdateCustomerUseCase;
-use App\Application\Customer\DTOs\CreateCustomerDTO;
-use App\Application\Customer\DTOs\ListCustomerDTO;
-use App\Application\Customer\DTOs\ShowCustomerDTO;
-use App\Application\Customer\DTOs\UpdateCustomerDTO;
+use App\Application\ServiceOrder\UseCases\ListCustomerServiceOrdersUseCase;
 use App\Presentation\Http\Requests\CreateCustomerRequest;
 use App\Presentation\Http\Requests\ListCustomerRequest;
 use App\Presentation\Http\Requests\UpdateCustomerRequest;
@@ -26,6 +27,7 @@ class CustomerController
     {
         $dto = new ShowCustomerDTO(id: $request->attributes->get('customer_id'));
         $customer = $useCase->execute($dto);
+
         return response()->json([
             'customer' => [
                 'id' => $customer->id,
@@ -35,6 +37,14 @@ class CustomerController
                 'document' => $customer->document,
             ],
         ]);
+    }
+
+    /**
+     * Cliente autenticado por CPF consulta o status das próprias OS.
+     */
+    public function myServiceOrders(Request $request, ListCustomerServiceOrdersUseCase $useCase)
+    {
+        return response()->json(['data' => $useCase->execute((string) $request->attributes->get('customer_id'))]);
     }
 
     public function store(CreateCustomerRequest $request, CreateCustomerUseCase $useCase)
@@ -46,6 +56,7 @@ class CustomerController
             $request->document
         );
         $customer = $useCase->execute($dto);
+
         return response()->json([
             'customer' => [
                 'id' => $customer->id,
@@ -56,6 +67,7 @@ class CustomerController
             ],
         ]);
     }
+
     public function list(ListCustomerRequest $request, ListCustomerUseCase $useCase)
     {
         $dto = new ListCustomerDTO(
@@ -63,6 +75,7 @@ class CustomerController
             perPage: $request->input('perPage', 10)
         );
         $customers = $useCase->execute($dto);
+
         return response()->json($customers);
     }
 
@@ -70,6 +83,7 @@ class CustomerController
     {
         $dto = new ShowCustomerDTO(id: $id);
         $customer = $useCase->execute($dto);
+
         return response()->json([
             'customer' => [
                 'id' => $customer->id,
@@ -80,6 +94,7 @@ class CustomerController
             ],
         ]);
     }
+
     public function update(UpdateCustomerRequest $request, UpdateCustomerUseCase $useCase)
     {
         $dto = new UpdateCustomerDTO(
@@ -90,6 +105,7 @@ class CustomerController
             document: $request->input('document')
         );
         $customer = $useCase->execute($dto);
+
         return response()->json([
             'customer' => [
                 'id' => $customer->id,
@@ -104,6 +120,7 @@ class CustomerController
     public function destroy(string $id, DeleteCustomerUseCase $useCase)
     {
         $useCase->execute($id);
+
         return response()->json(null, 204);
     }
 }

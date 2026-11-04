@@ -1,5 +1,114 @@
-# TechChallenge API
-API de autenticação construída com Laravel 13, JWT e MySQL, com ambiente de desenvolvimento via Docker Compose e documentação OpenAPI.
+# os-service — Ordens de Serviço (Tech Challenge FIAP)
+
+[![Laravel CI](https://github.com/VinnyTechDevelopment/tech-challenge-fiap/actions/workflows/laravel-ci.yml/badge.svg)](https://github.com/VinnyTechDevelopment/tech-challenge-fiap/actions/workflows/laravel-ci.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=VinnyTechDevelopment_tech-challenge-fiap&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=VinnyTechDevelopment_tech-challenge-fiap)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=VinnyTechDevelopment_tech-challenge-fiap&metric=coverage)](https://sonarcloud.io/summary/new_code?id=VinnyTechDevelopment_tech-challenge-fiap)
+
+Microsserviço de **Ordens de Serviço** da oficina: clientes, veículos, abertura e acompanhamento da OS, notificações, autenticação de funcionários e o **orquestrador da Saga** que coordena o billing-service e o execution-service.
+
+## Fase 4 — microsserviços e Saga Pattern
+
+A aplicação foi dividida em **3 microsserviços independentes**, cada um com repositório, infraestrutura (Terraform), banco de dados e pipeline de CI/CD próprios:
+
+| Microsserviço | Repositório | Banco | Responsabilidade |
+|---|---|---|---|
+| **os-service** (este) | `tech-challenge-fiap` | MySQL (RDS) | OS (abertura, status, histórico), clientes, veículos, auth de funcionários, **orquestrador da Saga** |
+| **billing-service** | [`billing-service-fiap`](https://github.com/VinnyTechDevelopment/billing-service-fiap) | MySQL (RDS próprio) | Orçamento, aprovação, pagamento **Mercado Pago**, estorno |
+| **execution-service** | [`execution-service-fiap`](https://github.com/VinnyTechDevelopment/execution-service-fiap) | **DynamoDB** (NoSQL) | Catálogo, estoque, fila de execução, diagnóstico/reparo |
+
+A infraestrutura compartilhada continua em [`infra-kubernetes-fiap`](https://github.com/VinnyTechDevelopment/infra-kubernetes-fiap) (VPC, EKS e New Relic do cluster), [`infra-database-fiap`](https://github.com/VinnyTechDevelopment/infra-database-fiap) (RDS deste serviço) e [`lambda-auth-cpf-fiap`](https://github.com/VinnyTechDevelopment/lambda-auth-cpf-fiap) (API Gateway, que agora roteia para os 3 serviços, Lambda de CPF e authorizer).
+
+- **Arquitetura e justificativa da divisão/tecnologias:** [docs/Fase4/arquitetura.md](docs/Fase4/arquitetura.md)
+- **Saga (decisão e justificativa):** [docs/Fase4/adrs/001-saga-orquestrada.md](docs/Fase4/adrs/001-saga-orquestrada.md)
+- **Diagramas de sequência (caminho feliz e compensações):** [docs/Fase4/diagrama-saga.md](docs/Fase4/diagrama-saga.md)
+- **Contratos das mensagens SQS:** [docs/Fase4/contratos-mensagens.md](docs/Fase4/contratos-mensagens.md)
+
+### Saga orquestrada — por que e como
+
+Escolhemos uma **Saga orquestrada**, com o orquestrador neste serviço (`app/Application/Saga/ServiceOrderSagaOrchestrator.php`), e não uma coreografia. O fluxo da OS é linear (orçamento → aprovação → pagamento → execução) e cada etapa tem uma compensação específica. Com um orquestrador central:
+
+- a ordem dos passos e as compensações ficam explícitas num lugar só e testadas (PHPUnit + BDD);
+- o estado de cada saga é persistido (`service_order_sagas`), com histórico de passos (`saga_steps`) e timeouts (`saga:timeouts`);
+- o rastreamento por OS fica direto: `GET /api/service-order/{id}/history`, evento `SagaStep` e dashboard no New Relic.
+
+```
+abrir OS ─CreateQuote─▶ billing ─QuoteCreated─▶ (cliente aprova) ─QuoteApproved─▶ (Mercado Pago) ─PaymentConfirmed─▶
+        ─ReservePartsAndEnqueue─▶ execution ─ExecutionQueued / StatusChanged / Finished─▶ OS finalizada
+```
+
+| Falha | Compensação |
+|---|---|
+| orçamento recusado / falha ao gerar | OS cancelada |
+| pagamento recusado ou prazo expirado | `billing.CancelQuote` → OS cancelada |
+| **falta de peças no estoque** | `billing.RefundPayment` (estorno Mercado Pago) → OS cancelada |
+| cancelamento pelo atendimento durante a execução | `execution.CancelExecution` (devolve peças) + `billing.RefundPayment` → OS cancelada |
+| pagamento chega após a compensação | billing estorna sozinho (`late_payment`) |
+
+Consistência: **outbox transacional** (estado + mensagem na mesma transação), **idempotência** por `message_id`, **lock por saga**, tratamento de **mensagens fora de ordem** e **DLQ** após 5 falhas. Detalhes no ADR.
+
+### Comunicação
+
+- **Assíncrona (Amazon SQS):** todos os passos da saga. Filas `os-saga-replies` (este serviço consome), `billing-commands` e `execution-commands`.
+- **Síncrona (REST):** `POST execution-service/api/catalog/lookup` ao abrir a OS (valida e precifica serviços/peças); a Lambda de CPF consulta `GET /api/internal/customers/by-document/{cpf}`. **Nenhum serviço acessa o banco de outro.**
+
+### Endpoints principais (Fase 4)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/api/service-order` | Abre a OS e inicia a saga (**202 Accepted**) |
+| GET | `/api/service-order/{id}` | OS + estado da saga |
+| GET | `/api/service-order/{id}/history` | Histórico de status + passos da saga (inclui compensações) |
+| POST | `/api/service-order/{id}/cancel` | Cancela disparando as compensações |
+| PATCH | `/api/service-order/{id}/status` | Registra a entrega (`finalizada → entregue`) |
+| GET | `/api/customer/me/service-orders` | Cliente (JWT por CPF) consulta as próprias OS |
+
+Contrato completo: [`openapi.yaml`](openapi.yaml) (Swagger UI em `http://localhost:8082`). Coleção **Bruno** em [`bruno/`](bruno/TechChallengeAuth), com o fluxo completo pelos 3 serviços.
+
+### Rodando os 3 microsserviços localmente
+
+Com os repositórios clonados lado a lado (`tech-challenge-fiap`, `billing-service-fiap`, `execution-service-fiap`):
+
+```bash
+docker compose -f docker-compose.microservices.yml up -d --build
+# os-service :8080 | execution-service :8083 | billing-service :8084 | LocalStack (SQS + DynamoDB) :4566
+
+# Teste ponta a ponta: fluxo completo + compensação (estorno por falta de peças)
+php scripts/e2e-saga.php
+```
+
+O pagamento local usa o gateway `fake`: o link de pagamento é o endpoint `/simulate` do billing. Para o sandbox do Mercado Pago, veja o README do billing-service.
+
+### Testes e qualidade (Fase 4)
+
+| Verificação | Ferramenta | Resultado |
+|---|---|---|
+| Testes unitários + integração | PHPUnit (MySQL real no CI) | 209 testes |
+| **Cobertura de linhas** | PCOV + `scripts/coverage-gate.php` (falha o CI abaixo de 80%) | **93,8%** |
+| **BDD — fluxo completo da OS** | Behat, [`features/saga_ordem_servico.feature`](features/saga_ordem_servico.feature) | 5 cenários / 58 passos |
+| Qualidade estática | SonarCloud (quality gate no PR) + Laravel Pint | — |
+| E2E entre os 3 serviços | `scripts/e2e-saga.php` (LocalStack + 2 MySQL + DynamoDB) | fluxo feliz + compensação |
+
+```bash
+make test        # PHPUnit (container + MySQL efêmero)
+make coverage    # gera coverage.xml
+vendor/bin/behat # BDD (mesmo banco de testes)
+```
+
+A evidência de cobertura de cada build fica no **resumo do job "Testes + cobertura"** no GitHub Actions e nos badges do SonarCloud acima.
+
+### CI/CD
+
+Cada push ou PR roda `.github/workflows/laravel-ci.yml`, com os jobs que são *required checks* da `main` protegida:
+
+1. **Lint (Pint)**
+2. **Testes + cobertura (>= 80%)**: PHPUnit, gate de cobertura e BDD (Behat)
+3. **Qualidade (SonarCloud)**: quality gate
+4. **Manifestos Kubernetes**: `kubeconform` em [`k8s/`](k8s)
+5. **Build da imagem**
+
+Em push para `main`/`homologacao`: `build-ghcr.yml` publica a imagem → `deploy-eks.yml` roda `terraform apply` no EKS (namespace, ConfigMap/Secret, Job de migration, Deployment da API com HPA, **Deployment worker** com consumer/outbox/scheduler, fila SQS e dashboards New Relic).
+
+---
 
 ## Descrição da solução e objetivos da fase 2
 

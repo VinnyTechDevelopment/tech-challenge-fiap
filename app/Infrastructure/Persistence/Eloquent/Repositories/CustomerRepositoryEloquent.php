@@ -2,8 +2,8 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
-use App\Domain\Customer\Interfaces\CustomerRepositoryInterface;
 use App\Domain\Customer\Entities\Customer;
+use App\Domain\Customer\Interfaces\CustomerRepositoryInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\CustomerModel;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,7 +18,7 @@ class CustomerRepositoryEloquent implements CustomerRepositoryInterface
             'phone' => $customer->phone,
             'document' => $customer->document,
             'created_user_id' => Auth::id(),
-            'updated_user_id' => Auth::id()
+            'updated_user_id' => Auth::id(),
         ]);
     }
 
@@ -26,7 +26,7 @@ class CustomerRepositoryEloquent implements CustomerRepositoryInterface
     {
         $model = CustomerModel::find($id);
 
-        if (!$model) {
+        if (! $model) {
             return null;
         }
 
@@ -35,14 +35,16 @@ class CustomerRepositoryEloquent implements CustomerRepositoryInterface
             $model->name,
             $model->email,
             $model->phone,
-            $model->document
+            $model->document,
+            $model->status ?? 'active'
         );
     }
+
     public function findByDocument(string $document): ?Customer
     {
         $model = CustomerModel::where('document', $document)->first();
 
-        if (!$model) {
+        if (! $model) {
             return null;
         }
 
@@ -51,14 +53,16 @@ class CustomerRepositoryEloquent implements CustomerRepositoryInterface
             $model->name,
             $model->email,
             $model->phone,
-            $model->document
+            $model->document,
+            $model->status ?? 'active'
         );
     }
+
     public function findByEmail(string $email): ?Customer
     {
         $model = CustomerModel::where('email', $email)->first();
 
-        if (!$model) {
+        if (! $model) {
             return null;
         }
 
@@ -67,13 +71,15 @@ class CustomerRepositoryEloquent implements CustomerRepositoryInterface
             $model->name,
             $model->email,
             $model->phone,
-            $model->document
+            $model->document,
+            $model->status ?? 'active'
         );
     }
 
     public function findAll(): array
     {
         $models = CustomerModel::all()->toArray();
+
         return $models;
     }
 
@@ -89,7 +95,7 @@ class CustomerRepositoryEloquent implements CustomerRepositoryInterface
             'email' => $customer->email,
             'phone' => $customer->phone,
             'document' => $customer->document,
-            'updated_user_id' => Auth::id()
+            'updated_user_id' => Auth::id(),
         ]);
     }
 

@@ -1,0 +1,74 @@
+# Manifestos Kubernetes do os-service (Fase 4).
+# Em EKS o deploy é feito pelo Terraform em infra/ (mesmos recursos, com
+# valores reais de banco/fila/secret); estes YAMLs documentam a topologia e
+# são validados no CI (kubeconform). Para aplicar manualmente:
+#   kubectl apply -f k8s/
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postech-worker
+  namespace: postech
+  labels:
+    app: postech-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postech-worker
+  template:
+    metadata:
+      labels:
+        app: postech-worker
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: consumer
+          image: ghcr.io/vinnytechdevelopment/tech-challenge-fiap:latest
+          imagePullPolicy: Always
+          # args (não command): preserva o ENTRYPOINT que injeta a License Key do New Relic
+          args: ["php", "artisan", "messaging:consume"]
+          env:
+            - name: NEWRELIC_APPNAME
+              value: "os-service (worker)"
+          envFrom:
+            - configMapRef:
+                name: postech-config
+            - secretRef:
+                name: postech-secret
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+        - name: outbox
+          image: ghcr.io/vinnytechdevelopment/tech-challenge-fiap:latest
+          imagePullPolicy: Always
+          # args (não command): preserva o ENTRYPOINT que injeta a License Key do New Relic
+          args: ["php", "artisan", "outbox:relay"]
+          env:
+            - name: NEWRELIC_APPNAME
+              value: "os-service (worker)"
+          envFrom:
+            - configMapRef:
+                name: postech-config
+            - secretRef:
+                name: postech-secret
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+        - name: scheduler
+          image: ghcr.io/vinnytechdevelopment/tech-challenge-fiap:latest
+          imagePullPolicy: Always
+          # args (não command): preserva o ENTRYPOINT que injeta a License Key do New Relic
+          args: ["php", "artisan", "schedule:work"]
+          env:
+            - name: NEWRELIC_APPNAME
+              value: "os-service (worker)"
+          envFrom:
+            - configMapRef:
+                name: postech-config
+            - secretRef:
+                name: postech-secret
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 250m, memory: 256Mi }

@@ -1,32 +1,37 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Presentation\Http\Controllers\ServiceOrderController;
-use App\Presentation\Http\Controllers\ServiceOrderServiceController;
-use App\Presentation\Http\Controllers\ItemController;
-use App\Presentation\Http\Controllers\NotificationController;
-use App\Presentation\Http\Controllers\StockController;
-use App\Presentation\Http\Controllers\ServiceController;
 use App\Presentation\Http\Controllers\CustomerController;
+use App\Presentation\Http\Controllers\InternalCustomerController;
+use App\Presentation\Http\Controllers\NotificationController;
+use App\Presentation\Http\Controllers\ServiceOrderController;
 use App\Presentation\Http\Controllers\VehicleController;
+use Illuminate\Support\Facades\Route;
 
-use App\Presentation\Http\Controllers\ServiceOrderApprovalController;
+/*
+ * os-service — Ordens de Serviço (orquestrador da saga), clientes, veículos,
+ * autenticação de funcionários e notificações.
+ *
+ * Catálogo/estoque/execução: execution-service (/api/catalog, /api/execution).
+ * Orçamento/pagamento: billing-service (/api/billing).
+ */
 
-Route::get('/service-order/approve/{token}', [ServiceOrderApprovalController::class, 'approve']);
-Route::get('/service-order/reject/{token}', [ServiceOrderApprovalController::class, 'reject']);
-Route::post('/service-order/approval/{token}', [ServiceOrderApprovalController::class, 'handle']);
+// Uso interno (Lambda lambda-auth-cpf), protegido por X-Internal-Token.
+Route::middleware('auth.internal')->prefix('internal')->group(function () {
+    Route::get('/customers/by-document/{document}', [InternalCustomerController::class, 'byDocument']);
+});
 
 Route::group([
     'middleware' => 'auth.customer',
-    'prefix' => 'customer'
+    'prefix' => 'customer',
 ], function () {
     Route::get('/me', [CustomerController::class, 'me']);
+    Route::get('/me/service-orders', [CustomerController::class, 'myServiceOrders']);
 });
 
 Route::group([
     'middleware' => 'auth:api',
-    'prefix' => 'customer'
+    'prefix' => 'customer',
 ], function () {
     Route::get('/', [CustomerController::class, 'list']);
     Route::post('/', [CustomerController::class, 'store']);
@@ -37,7 +42,7 @@ Route::group([
 
 Route::group([
     'middleware' => 'api',
-    'prefix' => 'auth'
+    'prefix' => 'auth',
 ], function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login'])->name('login');
@@ -48,7 +53,7 @@ Route::group([
 
 Route::group([
     'middleware' => 'auth:api',
-    'prefix' => 'vehicle'
+    'prefix' => 'vehicle',
 ], function () {
     Route::get('/', [VehicleController::class, 'list']);
     Route::post('/', [VehicleController::class, 'store']);
@@ -59,55 +64,20 @@ Route::group([
 
 Route::group([
     'middleware' => 'auth:api',
-    'prefix' => 'service-order'
+    'prefix' => 'service-order',
 ], function () {
     Route::get('/', [ServiceOrderController::class, 'list']);
     Route::post('/', [ServiceOrderController::class, 'store']);
     Route::get('/{id}', [ServiceOrderController::class, 'show']);
-    Route::put('/{id}', [ServiceOrderController::class, 'update']);
+    Route::get('/{id}/history', [ServiceOrderController::class, 'history']);
     Route::patch('/{id}/status', [ServiceOrderController::class, 'updateStatus']);
-    Route::delete('/{id}/services/{serviceId}', [ServiceOrderController::class, 'removeService']);
-    Route::delete('/{id}/items/{itemId}', [ServiceOrderController::class, 'removeItem']);
+    Route::post('/{id}/cancel', [ServiceOrderController::class, 'cancel']);
     Route::delete('/{id}', [ServiceOrderController::class, 'destroy']);
 });
 
 Route::group([
     'middleware' => 'auth:api',
-    'prefix' => 'service-order-service'
-], function () {
-    Route::get('/metrics/average-execution-time', [ServiceOrderServiceController::class, 'averageExecutionTime']);
-    Route::patch('/{id}/start', [ServiceOrderServiceController::class, 'start']);
-    Route::patch('/{id}/finish', [ServiceOrderServiceController::class, 'finish']);
-});
-
-Route::group([
-    'middleware' => 'auth:api',
-    'prefix' => 'item'
-], function () {
-    Route::get('/', [ItemController::class, 'list']);
-    Route::post('/', [ItemController::class, 'store']);
-    Route::get('/{id}', [ItemController::class, 'show']);
-    Route::put('/{id}', [ItemController::class, 'update']);
-    Route::delete('/{id}', [ItemController::class, 'destroy']);
-
-    Route::post('/{id}/stock/entry', [StockController::class, 'entry']);
-    Route::post('/{id}/stock/withdrawal', [StockController::class, 'withdrawal']);
-    Route::get('/{id}/stock/movements', [StockController::class, 'movements']);
-});
-Route::group([
-    'middleware' => 'auth:api',
-    'prefix' => 'service'
-], function () {
-    Route::get('/', [ServiceController::class, 'list']);
-    Route::post('/', [ServiceController::class, 'store']);
-    Route::get('/{id}', [ServiceController::class, 'show']);
-    Route::put('/{id}', [ServiceController::class, 'update']);
-    Route::delete('/{id}', [ServiceController::class, 'destroy']);
-});
-
-Route::group([
-    'middleware' => 'auth:api',
-    'prefix' => 'notification'
+    'prefix' => 'notification',
 ], function () {
     Route::get('/', [NotificationController::class, 'list']);
     Route::get('/{id}', [NotificationController::class, 'show']);

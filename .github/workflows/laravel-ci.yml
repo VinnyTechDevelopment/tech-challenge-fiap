@@ -1,160 +1,159 @@
 name: Laravel CI
 
+# Pipeline de qualidade do os-service (Fase 4). Os nomes dos jobs são os
+# "status checks" exigidos pela proteção da branch main. Em push para
+# main/homologacao, o sucesso deste workflow dispara o build da imagem
+# (build-ghcr.yml), que por sua vez dispara o deploy no EKS (deploy-eks.yml).
+
 on:
   push:
-    branches: [ "main", "homologacao" ]
+    branches: [main, homologacao]
   pull_request:
-    branches: [ "main" ]
+    branches: [main, homologacao]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  laravel-tests:
+  lint:
+    name: Lint (Pint)
     runs-on: ubuntu-latest
-
     steps:
-    - name: Baixar o código do repositório
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    # 1. Validação e Planejamento do Terraform
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: "1.7.0"
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
 
-    - name: Terraform Validate & Plan
-      run: |
-        terraform init -backend=false
-        terraform validate
+      - name: Instalar dependências
+        run: composer install --no-interaction --prefer-dist --no-progress
 
-    # 2. Cria o Cluster Kubernetes temporário (Kind)
-    - name: Setup Kubernetes Cluster (Kind)
-      uses: helm/kind-action@v1.10.0
-      with:
-        cluster_name: laravel-cluster-ci
+      - name: Pint
+        run: vendor/bin/pint --test
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+  tests:
+    name: Testes + cobertura (>= 80%)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: test_db
+      DB_USERNAME: test_user
+      DB_PASSWORD: test_password
+    steps:
+      - uses: actions/checkout@v4
 
-    # 3. Constroi a imagem Docker exatamente com o nome esperado pelo Kubernetes
-    - name: Build Laravel Docker Image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ./Dockerfile
-        tags: techchallenge-1-app-php:v2
-        load: true
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, pdo_sqlite, bcmath, pcntl
+          tools: composer:v2
+          coverage: pcov
 
-    # 4. Injeta a imagem para dentro do nó do Kind
-    - name: Load Image into Kind Cluster
-      run: |
-        kind load docker-image techchallenge-1-app-php:v2 --name laravel-cluster-ci
+      - name: Instalar dependências
+        run: composer install --no-interaction --prefer-dist --no-progress
 
-    # 5. Valida a sintaxe dos manifestos (Ajuste o caminho se não usar a pasta k8s/)
-    - name: Validate K8s Manifests
-      run: |
-        kubectl apply --dry-run=client -f k8s/02-app/app-deployment.yaml
+      - name: Preparar ambiente de teste
+        run: cp .env.testing .env
 
-    # 6. Executa o deploy de teste
-    - name: Deploy and Test Laravel App
-      run: |
-        export CI_IMAGE=techchallenge-1-app-php:v2
-        kubectl create namespace postech --dry-run=client -o yaml | kubectl apply -f -
+      - name: Migrations
+        run: php artisan migrate --force
 
-        echo "=== OTIMIZANDO MANIFESTOS PARA O AMBIENTE DE CI ==="
-        MYSQL_FILE=$(ls k8s/03-database/* 2>/dev/null | head -n 1)
-        echo "Arquivo do MySQL encontrado: $MYSQL_FILE"
+      - name: Testes unitários e de integração (PHPUnit)
+        run: vendor/bin/phpunit --coverage-clover coverage.xml --log-junit junit.xml
 
-        # Remove as probes do MySQL para evitar reinícios por falso-positivo no ambiente do CI
-        yq eval 'del(.spec.template.spec.containers[0].livenessProbe)' -i "$MYSQL_FILE"
-        yq eval 'del(.spec.template.spec.containers[0].readinessProbe)' -i "$MYSQL_FILE"
+      - name: Gate de cobertura (mínimo 80%)
+        run: php scripts/coverage-gate.php coverage.xml 80
 
-        # Remove o init container do Laravel para gerenciarmos a espera de forma direta
-        yq eval 'del(.spec.template.spec.initContainers)' -i k8s/02-app/app-deployment.yaml
+      - name: BDD — fluxo completo da OS (Behat)
+        run: |
+          php artisan migrate:fresh --force
+          vendor/bin/behat --format=progress
 
-        # Forca os manifestos a usar a imagem carregada no Kind, sem pull externo
-        yq eval '.spec.template.spec.imagePullSecrets = []' -i k8s/02-app/app-deployment.yaml
-        yq eval '.spec.template.spec.containers[0].image = env(CI_IMAGE)' -i k8s/02-app/app-deployment.yaml
-        yq eval '.spec.template.spec.containers[0].imagePullPolicy = "IfNotPresent"' -i k8s/02-app/app-deployment.yaml
-        yq eval '.spec.template.spec.imagePullSecrets = []' -i k8s/02-app/migrate-job.yaml
-        yq eval '.spec.template.spec.containers[0].image = env(CI_IMAGE)' -i k8s/02-app/migrate-job.yaml
-        yq eval '.spec.template.spec.containers[0].imagePullPolicy = "IfNotPresent"' -i k8s/02-app/migrate-job.yaml
+      - name: Publicar relatórios
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            coverage.xml
+            junit.xml
 
-        echo "Aplicando todos os manifestos no Kubernetes..."
-        kubectl apply -f k8s/00-namespaces/
-        kubectl apply -f k8s/01-config/
-        kubectl apply -f k8s/02-app/
-        kubectl apply -f k8s/03-database/
+  quality:
+    name: Qualidade (SonarCloud)
+    runs-on: ubuntu-latest
+    needs: tests
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-reports
 
-        echo "=== AGUARDANDO O SOCKET DO MYSQL ABRIR ==="
-        # Aguarda dinamicamente o pod do MySQL ser criado e iniciar o processo do container
-        kubectl wait --namespace postech --for=jsonpath='{.status.phase}'=Running pod -l app=mysql --timeout=90s
+      - name: Aviso — SONAR_TOKEN não configurado
+        if: env.SONAR_TOKEN == ''
+        run: echo "::warning::SONAR_TOKEN ausente — análise do SonarCloud não executada. Ver README, seção Qualidade."
 
-        MYSQL_POD=$(kubectl get pods -n postech -l app=mysql -o jsonpath='{.items[0].metadata.name}')
-        echo "Aguardando MySQL aceitar conexoes..."
-        for i in $(seq 1 45); do
-          if kubectl exec -n postech "$MYSQL_POD" -- sh -lc 'mysql -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"' >/dev/null 2>&1; then
-            echo "MySQL pronto."
-            break
-          fi
+      - name: Análise SonarCloud (com quality gate)
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
 
-          if [ "$i" -eq 45 ]; then
-            echo "Timeout aguardando MySQL ficar pronto."
-            kubectl logs -n postech "$MYSQL_POD" --tail=200 || true
-            exit 1
-          fi
+  k8s-manifests:
+    name: Manifestos Kubernetes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-          sleep 2
-        done
+      - name: Instalar kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
 
-        echo "=== AGUARDANDO O LARAVEL FICAR PRONTO ==="
-        kubectl wait --namespace postech --for=condition=ready pod -l app=postech-app --timeout=90s
+      - name: Validar k8s/
+        run: kubeconform -strict -summary -ignore-missing-schemas k8s/
 
-        echo "=== STATUS ATUAL DOS PODS ==="
-        kubectl get pods -n postech
+  docker:
+    name: Build da imagem
+    runs-on: ubuntu-latest
+    needs: [lint, tests]
+    steps:
+      - uses: actions/checkout@v4
 
-        echo "=== COLETANDO NOME DO POD DO LARAVEL ==="
-        APP_POD=$(kubectl get pods -n postech -l app=postech-app -o jsonpath='{.items[0].metadata.name}')
-        echo "Pod detectado: $APP_POD"
+      - uses: docker/setup-buildx-action@v3
 
-        echo "=== COPIANDO PASTA DE TESTES PARA O POD ==="
-        kubectl cp tests/ postech/$APP_POD:/var/www/html/tests -c app
-
-        echo "=== PREPARANDO BANCO E EXECUTANDO OS TESTES ==="
-        # 1. Executa as migrações usando o host do banco correto
-        kubectl exec -n postech "$APP_POD" -c app -- env \
-          DB_CONNECTION=mysql \
-          DB_HOST=mysql \
-          DB_PORT=3306 \
-          php artisan migrate --force
-
-        # 2. Executa os testes injetando as chaves temporárias para o ambiente do CI
-        # (CUSTOMER_JWT_SECRET adicionada na Fase 3 — sem ela, CustomerMeTest
-        # falha com "key must be a string when using hmac" ao gerar tokens de teste)
-        kubectl exec -n postech "$APP_POD" -c app -- env \
-          DB_CONNECTION=mysql \
-          DB_HOST=mysql \
-          DB_PORT=3306 \
-          APP_KEY=${{ secrets.APP_KEY }} \
-          JWT_SECRET=${{ secrets.JWT_SECRET }} \
-          CUSTOMER_JWT_SECRET=${{ secrets.CUSTOMER_JWT_SECRET }} \
-          ./vendor/bin/phpunit --no-configuration tests/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      - name: Build (sem push — publicação é feita pelo build-ghcr.yml)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
