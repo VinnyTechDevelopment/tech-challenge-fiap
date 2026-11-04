@@ -113,7 +113,7 @@ $openOrder = function (int $qty) use ($os, $token, $customer, $vehicle, $svc, $i
     return $body;
 };
 
-$payOrder = function (string $id) use ($os, $billing, $token, $timeout): void {
+$payOrder = function (string $id) use ($os, $token, $timeout): void {
     $saga = waitFor(function () use ($os, $id, $token) {
         $o = orderStatus($os, $id, $token);
 
