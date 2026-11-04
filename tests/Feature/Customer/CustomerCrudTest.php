@@ -10,7 +10,8 @@ class CustomerCrudTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const VALID_CPF  = '52998224725';
+    private const VALID_CPF = '52998224725';
+
     private const VALID_CPF2 = '11144477735';
 
     private User $user;
@@ -24,9 +25,9 @@ class CustomerCrudTest extends TestCase
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
-            'name'     => 'Maria Oliveira',
-            'email'    => 'maria@example.com',
-            'phone'    => '11999990000',
+            'name' => 'Maria Oliveira',
+            'email' => 'maria@example.com',
+            'phone' => '11999990000',
             'document' => self::VALID_CPF2,
         ], $overrides);
     }
@@ -43,8 +44,8 @@ class CustomerCrudTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonStructure(['customer' => ['id', 'name', 'email', 'phone', 'document']])
             ->assertJsonFragment([
-                'name'     => 'Maria Oliveira',
-                'email'    => 'maria@example.com',
+                'name' => 'Maria Oliveira',
+                'email' => 'maria@example.com',
                 'document' => self::VALID_CPF2,
             ]);
 

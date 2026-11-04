@@ -15,8 +15,14 @@ class DeleteServiceOrderUseCase
     {
         $serviceOrder = $this->repository->findById($dto->id);
 
-        if (!$serviceOrder) {
+        if (! $serviceOrder) {
             throw new \DomainException('Ordem de servico nao encontrada');
+        }
+
+        // Uma OS com saga em andamento tem estado em outros serviços
+        // (orçamento, pagamento, reserva de peças): use o cancelamento.
+        if (! $serviceOrder->isFinal()) {
+            throw new \DomainException('Apenas ordens de servico entregues ou canceladas podem ser removidas. Use o cancelamento.');
         }
 
         $this->repository->delete($dto->id);

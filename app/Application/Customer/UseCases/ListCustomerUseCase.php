@@ -4,7 +4,6 @@ namespace App\Application\Customer\UseCases;
 
 use App\Application\Customer\DTOs\ListCustomerDTO;
 use App\Domain\Customer\Interfaces\CustomerRepositoryInterface;
-use App\Domain\Customer\Entities\Customer;
 
 class ListCustomerUseCase
 {
@@ -19,8 +18,10 @@ class ListCustomerUseCase
             if ($perPage <= 0) {
                 $perPage = 10;
             }
+
             return $this->repository->paginate($dto->page, $perPage);
         }
+
         return $this->repository->findAll();
     }
 }

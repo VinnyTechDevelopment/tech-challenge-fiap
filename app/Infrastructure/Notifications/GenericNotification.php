@@ -28,5 +28,5 @@ class GenericNotification extends Notification
             'subject' => $this->notification->getSubject(),
             'content' => $this->notification->getContent(),
         ];
-    }    
+    }
 }

@@ -14,7 +14,7 @@ class DeleteCustomerUseCase
     {
         $customer = $this->repository->findById($id);
 
-        if (!$customer) {
+        if (! $customer) {
             throw new \DomainException('Customer not found.');
         }
 

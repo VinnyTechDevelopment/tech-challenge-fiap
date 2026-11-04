@@ -31,7 +31,7 @@ class NotifyMechanicsOnServiceOrderCreated
                 'Nova ordem de serviço aberta',
                 "Uma nova ordem de serviço foi aberta e aguarda atendimento. ID: {$serviceOrder->id}.",
                 NotificationStatus::PENDING,
-                new \DateTimeImmutable()
+                new \DateTimeImmutable
             );
 
             $this->notificationRepository->save($notification);

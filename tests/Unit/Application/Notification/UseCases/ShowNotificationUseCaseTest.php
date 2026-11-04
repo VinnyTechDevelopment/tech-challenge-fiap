@@ -10,12 +10,13 @@ use App\Domain\Notification\ValueObjects\NotificationStatus;
 use App\Domain\Notification\ValueObjects\NotificationType;
 use DateTimeImmutable;
 use Mockery;
-use PHPUnit\Framework\TestCase;
 use Mockery\MockInterface;
+use PHPUnit\Framework\TestCase;
 
 class ShowNotificationUseCaseTest extends TestCase
 {
     private MockInterface $repository;
+
     private ShowNotificationUseCase $useCase;
 
     protected function setUp(): void
@@ -30,6 +31,7 @@ class ShowNotificationUseCaseTest extends TestCase
         parent::tearDown();
         Mockery::close();
     }
+
     public function test_show_notification()
     {
         $notification = new Notification(
@@ -39,10 +41,10 @@ class ShowNotificationUseCaseTest extends TestCase
             subject: 'test',
             content: 'test',
             status: NotificationStatus::PENDING,
-            createdAt: new DateTimeImmutable(),
-            sentAt: new DateTimeImmutable()
+            createdAt: new DateTimeImmutable,
+            sentAt: new DateTimeImmutable
         );
-            
+
         $this->repository->shouldReceive('findById')->andReturn($notification);
 
         $result = $this->useCase->execute(new ShowNotificationDTO(id: 'test'));

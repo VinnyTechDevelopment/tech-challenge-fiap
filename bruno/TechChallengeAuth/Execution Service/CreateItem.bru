@@ -1,0 +1,27 @@
+meta {
+  name: Catálogo: criar peça
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{executionUrl}}/catalog/items
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Filtro de oleo",
+    "code": "FLT-001",
+    "type": "part",
+    "measure_unit": "un",
+    "minimum_quantity": 2,
+    "unit_price": 45.5
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

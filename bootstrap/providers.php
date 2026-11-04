@@ -1,7 +1,13 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use App\Providers\EventServiceProvider;
+use App\Providers\MessagingServiceProvider;
+use App\Providers\RepositoryServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\EventServiceProvider::class,
-    App\Providers\RepositoryServiceProvider::class,
+    AppServiceProvider::class,
+    EventServiceProvider::class,
+    MessagingServiceProvider::class,
+    RepositoryServiceProvider::class,
 ];

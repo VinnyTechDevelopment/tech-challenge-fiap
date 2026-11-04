@@ -14,7 +14,7 @@ class DeleteVehicleUseCase
     {
         $vehicle = $this->repository->findById($id);
 
-        if (!$vehicle) {
+        if (! $vehicle) {
             throw new \DomainException('Vehicle not found.');
         }
 

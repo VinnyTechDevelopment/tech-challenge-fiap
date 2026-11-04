@@ -26,7 +26,7 @@ class CreateVehicleRequest extends FormRequest
             'brand' => 'required|string',
             'model' => 'required|string',
             'year' => 'required|integer|min:1900',
-            'plate' => 'required|string'
+            'plate' => 'required|string',
         ];
     }
 }

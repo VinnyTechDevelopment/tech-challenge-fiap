@@ -5,172 +5,111 @@ namespace App\Presentation\Http\Controllers;
 use App\Application\ServiceOrder\DTOs\CreateServiceOrderDTO;
 use App\Application\ServiceOrder\DTOs\DeleteServiceOrderDTO;
 use App\Application\ServiceOrder\DTOs\ListServiceOrderDTO;
-use App\Application\ServiceOrder\DTOs\RemoveServiceOrderItemDTO;
-use App\Application\ServiceOrder\DTOs\RemoveServiceOrderServiceDTO;
 use App\Application\ServiceOrder\DTOs\ShowServiceOrderDTO;
-use App\Application\ServiceOrder\DTOs\UpdateServiceOrderDTO;
 use App\Application\ServiceOrder\DTOs\UpdateServiceOrderStatusDTO;
+use App\Application\ServiceOrder\UseCases\CancelServiceOrderUseCase;
 use App\Application\ServiceOrder\UseCases\CreateServiceOrderUseCase;
 use App\Application\ServiceOrder\UseCases\DeleteServiceOrderUseCase;
 use App\Application\ServiceOrder\UseCases\ListServiceOrderUseCase;
-use App\Application\ServiceOrder\UseCases\RemoveServiceOrderItemUseCase;
-use App\Application\ServiceOrder\UseCases\RemoveServiceOrderServiceUseCase;
 use App\Application\ServiceOrder\UseCases\ShowServiceOrderUseCase;
+use App\Application\ServiceOrder\UseCases\TrackServiceOrderUseCase;
 use App\Application\ServiceOrder\UseCases\UpdateServiceOrderStatusUseCase;
-use App\Application\ServiceOrder\UseCases\UpdateServiceOrderUseCase;
 use App\Domain\ServiceOrder\Entities\ServiceOrder;
 use App\Presentation\Http\Requests\CreateServiceOrderRequest;
 use App\Presentation\Http\Requests\ListServiceOrderRequest;
-use App\Presentation\Http\Requests\UpdateServiceOrderRequest;
 use App\Presentation\Http\Requests\UpdateServiceOrderStatusRequest;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ServiceOrderController
 {
-    public function store(CreateServiceOrderRequest $request, CreateServiceOrderUseCase $useCase)
+    public function store(CreateServiceOrderRequest $request, CreateServiceOrderUseCase $useCase): JsonResponse
     {
-        $dto = new CreateServiceOrderDTO(
+        ['order' => $order, 'saga' => $saga] = $useCase->execute(new CreateServiceOrderDTO(
             vehicleId: $request->input('vehicle_id'),
             customerId: $request->input('customer_id'),
             services: $request->input('services', []),
             items: $request->input('items', []),
-            sendQuote: $request->boolean('send_quote', true)
-        );
-
-        $serviceOrder = $useCase->execute($dto);
-
-        $response = [
-            'service_order' => $this->present($serviceOrder),
-            'message' => 'Ordem de servico criada com sucesso',
-        ];
-
-        if ($serviceOrder->approvalToken !== null) {
-            $response['approval_link'] = url("/api/service-order/approve/{$serviceOrder->approvalToken}");
-        }
-
-        return response()->json($response, 201);
-    }
-
-    public function list(ListServiceOrderRequest $request, ListServiceOrderUseCase $useCase)
-    {
-        $dto = new ListServiceOrderDTO(
-            page: (int) $request->input('page', 1),
-            perPage: (int) $request->input('perPage', 10)
-        );
-
-        $serviceOrders = $useCase->execute($dto);
-
-        return response()->json($serviceOrders);
-    }
-
-    public function show(string $id, ShowServiceOrderUseCase $useCase)
-    {
-        $dto = new ShowServiceOrderDTO(id: $id);
-        $serviceOrder = $useCase->execute($dto);
+        ));
 
         return response()->json([
-            'service_order' => $this->present($serviceOrder),
+            'service_order' => $this->present($order),
+            'saga' => $saga->toArray(),
+            'message' => 'Ordem de servico aberta. Orcamento sendo gerado pelo billing-service.',
+        ], 202);
+    }
+
+    public function list(ListServiceOrderRequest $request, ListServiceOrderUseCase $useCase): JsonResponse
+    {
+        return response()->json($useCase->execute(new ListServiceOrderDTO(
+            page: (int) $request->input('page', 1),
+            perPage: (int) $request->input('perPage', 10)
+        )));
+    }
+
+    public function show(string $id, ShowServiceOrderUseCase $useCase, TrackServiceOrderUseCase $tracking): JsonResponse
+    {
+        $order = $useCase->execute(new ShowServiceOrderDTO(id: $id));
+        $track = $tracking->execute($id);
+
+        return response()->json([
+            'service_order' => $this->present($order),
+            'saga' => $track['saga'],
         ]);
     }
 
-    public function update(
-        UpdateServiceOrderRequest $request,
-        UpdateServiceOrderUseCase $useCase
-    ) {
-        $dto = new UpdateServiceOrderDTO(
-            id: $request->route('id'),
-            services: $request->input('services'),
-            items: $request->input('items', $request->input('parts')),
-            vehicleId: $request->input('vehicle_id'),
-            customerId: $request->input('customer_id'),
-            status: $request->input('status'),
-            sendQuote: $request->has('send_quote') ? $request->boolean('send_quote') : null,
-            approveQuote: $request->has('approve_quote') ? $request->boolean('approve_quote') : null,
-        );
-
-        $serviceOrder = $useCase->execute($dto);
-
-        $response = [
-            'service_order' => $this->present($serviceOrder),
-            'message' => 'Ordem de servico atualizada com sucesso',
-        ];
-
-        if ($dto->sendQuote === true && $serviceOrder->approvalToken !== null) {
-            $response['approval_link'] = url("/api/service-order/approve/{$serviceOrder->approvalToken}");
-        }
-
-        return response()->json($response);
+    public function history(string $id, TrackServiceOrderUseCase $useCase): JsonResponse
+    {
+        return response()->json($useCase->execute($id));
     }
 
-    public function updateStatus(
-        UpdateServiceOrderStatusRequest $request,
-        UpdateServiceOrderStatusUseCase $useCase
-    ) {
-        $dto = new UpdateServiceOrderStatusDTO(
+    public function updateStatus(UpdateServiceOrderStatusRequest $request, UpdateServiceOrderStatusUseCase $useCase): JsonResponse
+    {
+        $order = $useCase->execute(new UpdateServiceOrderStatusDTO(
             id: $request->route('id'),
             status: $request->input('status')
-        );
-
-        $serviceOrder = $useCase->execute($dto);
+        ));
 
         return response()->json([
-            'service_order' => $this->present($serviceOrder),
+            'service_order' => $this->present($order),
             'message' => 'Status da ordem de servico atualizado com sucesso',
         ]);
     }
 
+    public function cancel(string $id, Request $request, CancelServiceOrderUseCase $useCase): JsonResponse
+    {
+        $reason = $request->validate(['reason' => 'required|string|max:300'])['reason'];
+        $saga = $useCase->execute($id, $reason);
+
+        return response()->json([
+            'saga' => $saga->toArray(),
+            'message' => 'Cancelamento iniciado: compensacoes enviadas aos servicos envolvidos.',
+        ], 202);
+    }
+
     public function destroy(string $id, DeleteServiceOrderUseCase $useCase)
     {
-        $dto = new DeleteServiceOrderDTO(id: $id);
-        $useCase->execute($dto);
+        $useCase->execute(new DeleteServiceOrderDTO(id: $id));
 
         return response()->noContent();
     }
 
-    public function removeService(string $id, string $serviceId, RemoveServiceOrderServiceUseCase $useCase)
-    {
-        $dto = new RemoveServiceOrderServiceDTO(
-            id: $id,
-            serviceId: $serviceId
-        );
-
-        $serviceOrder = $useCase->execute($dto);
-
-        return response()->json([
-            'service_order' => $this->present($serviceOrder),
-            'message' => 'Servico removido da ordem de servico com sucesso',
-        ]);
-    }
-
-    public function removeItem(string $id, string $itemId, RemoveServiceOrderItemUseCase $useCase)
-    {
-        $dto = new RemoveServiceOrderItemDTO(
-            id: $id,
-            itemId: $itemId
-        );
-
-        $serviceOrder = $useCase->execute($dto);
-
-        return response()->json([
-            'service_order' => $this->present($serviceOrder),
-            'message' => 'Item removido da ordem de servico com sucesso',
-        ]);
-    }
-
-    private function present(ServiceOrder $serviceOrder): array
+    private function present(ServiceOrder $order): array
     {
         return [
-            'id' => $serviceOrder->id,
-            'customer_id' => $serviceOrder->customerId,
-            'vehicle_id' => $serviceOrder->vehicleId,
-            'services' => $serviceOrder->services,
-            'items' => $serviceOrder->items,
-            'status' => $serviceOrder->status,
-            'services_total' => $serviceOrder->servicesTotal,
-            'items_total' => $serviceOrder->itemsTotal,
-            'total_budget' => $serviceOrder->totalBudget,
-            'quote_sent_at' => $serviceOrder->quoteSentAt,
-            'quote_approved_at' => $serviceOrder->quoteApprovedAt,
-            'approval_token' => $serviceOrder->approvalToken,
+            'id' => $order->id,
+            'customer_id' => $order->customerId,
+            'vehicle_id' => $order->vehicleId,
+            'services' => $order->services,
+            'items' => $order->items,
+            'status' => $order->status,
+            'services_total' => $order->servicesTotal,
+            'items_total' => $order->itemsTotal,
+            'total_budget' => $order->totalBudget,
+            'quote_sent_at' => $order->quoteSentAt,
+            'quote_approved_at' => $order->quoteApprovedAt,
+            'paid_at' => $order->paidAt,
+            'cancellation_reason' => $order->cancellationReason,
         ];
     }
 }

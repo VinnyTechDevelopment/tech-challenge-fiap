@@ -41,4 +41,17 @@ return [
         'secret' => env('CUSTOMER_JWT_SECRET'),
     ],
 
+    // execution-service: consulta síncrona (REST) ao catálogo ao abrir a OS.
+    'execution' => [
+        'url' => env('EXECUTION_SERVICE_URL', 'http://localhost:8083'),
+        'timeout' => (int) env('EXECUTION_SERVICE_TIMEOUT', 5),
+    ],
+
+    // Token compartilhado com a Lambda lambda-auth-cpf para o endpoint
+    // interno de busca de cliente por CPF (a Lambda não acessa mais o banco
+    // do os-service diretamente).
+    'internal_api' => [
+        'token' => env('INTERNAL_API_TOKEN'),
+    ],
+
 ];

@@ -3,8 +3,8 @@
 namespace App\Application\Vehicle\UseCases;
 
 use App\Application\Vehicle\DTOs\ShowVehicleDTO;
-use App\Domain\Vehicle\Interfaces\VehicleRepositoryInterface;
 use App\Domain\Vehicle\Entities\Vehicle;
+use App\Domain\Vehicle\Interfaces\VehicleRepositoryInterface;
 
 class ShowVehicleUseCase
 {
@@ -16,7 +16,7 @@ class ShowVehicleUseCase
     {
         $vehicle = $this->repository->findById($dto->id);
 
-        if (!$vehicle) {
+        if (! $vehicle) {
             throw new \DomainException('Veículo não encontrado');
         }
 

@@ -14,6 +14,7 @@ resource "kubernetes_secret_v1" "app_secret" {
     MAIL_USERNAME        = var.mail_username
     MAIL_PASSWORD        = var.mail_password
     NEWRELIC_LICENSE_KEY = var.newrelic_license_key
+    INTERNAL_API_TOKEN   = var.internal_api_token
   }
 }
 

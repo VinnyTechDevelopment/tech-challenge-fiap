@@ -1,10 +1,14 @@
 <?php
 
+use App\Application\Exceptions\ServiceUnavailableException;
+use App\Presentation\Http\Middleware\AssignRequestId;
+use App\Presentation\Http\Middleware\AuthenticateCustomerJwt;
+use App\Presentation\Http\Middleware\AuthenticateInternalToken;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Illuminate\Auth\AuthenticationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,10 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'auth.customer' => \App\Presentation\Http\Middleware\AuthenticateCustomerJwt::class,
+            'auth.customer' => AuthenticateCustomerJwt::class,
+            'auth.internal' => AuthenticateInternalToken::class,
         ]);
 
-        $middleware->append(\App\Presentation\Http\Middleware\AssignRequestId::class);
+        $middleware->append(AssignRequestId::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $e, Request $request) {
@@ -25,13 +30,19 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (\DomainException $e, Request $request) {
+        $exceptions->render(function (ServiceUnavailableException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $e->getMessage()], 503);
+            }
+        });
+
+        $exceptions->render(function (DomainException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => $e->getMessage()], 422);
             }
         });
 
-        $exceptions->render(function (\InvalidArgumentException $e, Request $request) {
+        $exceptions->render(function (InvalidArgumentException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => $e->getMessage()], 422);
             }

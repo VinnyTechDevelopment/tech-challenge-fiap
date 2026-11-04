@@ -3,8 +3,8 @@
 namespace App\Application\Vehicle\UseCases;
 
 use App\Application\Vehicle\DTOs\UpdateVehicleDto;
-use App\Domain\Vehicle\Interfaces\VehicleRepositoryInterface;
 use App\Domain\Vehicle\Entities\Vehicle;
+use App\Domain\Vehicle\Interfaces\VehicleRepositoryInterface;
 
 class UpdateVehicleUseCase
 {
@@ -16,7 +16,7 @@ class UpdateVehicleUseCase
     {
         $vehicle = $this->repository->findById($dto->id);
 
-        if (!$vehicle) {
+        if (! $vehicle) {
             throw new \DomainException('Veículo não encontrado');
         }
 

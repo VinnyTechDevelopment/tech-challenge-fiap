@@ -11,8 +11,14 @@ class Customer
         public string $name,
         public string $email,
         public string $phone,
-        public string $document
+        public string $document,
+        public string $status = 'active'
     ) {}
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
 
     public static function create(
         string $name,

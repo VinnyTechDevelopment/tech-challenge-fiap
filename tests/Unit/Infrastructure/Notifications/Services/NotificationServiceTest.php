@@ -2,12 +2,12 @@
 
 namespace Tests\Unit\Infrastructure\Notifications\Services;
 
+use App\Domain\Customer\Interfaces\CustomerRepositoryInterface;
 use App\Domain\Notification\Entities\Notification as NotificationEntity;
 use App\Domain\Notification\ValueObjects\NotificationStatus;
 use App\Domain\Notification\ValueObjects\NotificationType;
 use App\Infrastructure\Notifications\GenericNotification;
 use App\Infrastructure\Notifications\Services\NotificationService;
-use App\Domain\Customer\Interfaces\CustomerRepositoryInterface;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -29,7 +29,7 @@ class NotificationServiceTest extends TestCase
             subject: 'Assunto',
             content: 'Conteudo',
             status: NotificationStatus::PENDING,
-            createdAt: new \DateTimeImmutable()
+            createdAt: new \DateTimeImmutable
         );
 
         $service->send($notification);
