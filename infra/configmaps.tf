@@ -7,33 +7,32 @@ resource "kubernetes_config_map_v1" "app_config" {
   data = {
     APP_NAME               = "POS Tech"
     APP_ENV                = "production"
-    APP_DEBUG               = "false"
-    APP_URL                 = "http://localhost"
-    APP_LOCALE              = "pt_BR"
-    APP_FALLBACK_LOCALE     = "en"
-    APP_FAKER_LOCALE        = "pt_BR"
-    APP_MAINTENANCE_DRIVER  = "file"
+    APP_DEBUG              = "false"
+    APP_URL                = "http://localhost"
+    APP_LOCALE             = "pt_BR"
+    APP_FALLBACK_LOCALE    = "en"
+    APP_FAKER_LOCALE       = "pt_BR"
+    APP_MAINTENANCE_DRIVER = "file"
     # stack -> stderr: logs em JSON no stdout/stderr do container, o único
     # lugar que "kubectl logs" e um coletor externo (New Relic etc.) enxergam.
-    LOG_CHANNEL             = "stack"
-    LOG_STACK               = "stderr"
-    # Pronta pro dia em que o agente New Relic for instalado na imagem —
-    # hoje não faz nada sozinha (ver README, seção Observabilidade).
-    NEWRELIC_APPNAME        = var.newrelic_app_name
-    DB_CONNECTION           = "mysql"
+    LOG_CHANNEL = "stack"
+    LOG_STACK   = "stderr"
+    # Nome da aplicação no New Relic APM (lido pelo docker/entrypoint.sh).
+    NEWRELIC_APPNAME = var.newrelic_app_name
+    DB_CONNECTION    = "mysql"
     # Antes apontava pro Service "mysql" dentro do cluster (Minikube).
     # Agora aponta pro RDS provisionado no repositório infra-database.
-    DB_HOST                 = data.terraform_remote_state.database.outputs.rds_address
-    DB_PORT                 = tostring(data.terraform_remote_state.database.outputs.rds_port)
-    DB_DATABASE             = data.terraform_remote_state.database.outputs.db_name
-    DB_USERNAME             = "techchallenge"
-    QUEUE_CONNECTION        = "database"
-    CACHE_STORE             = "database"
-    MAIL_MAILER             = "log"
-    MAIL_HOST               = "smtp.gmail.com"
-    MAIL_PORT               = "587"
-    MAIL_FROM_ADDRESS       = "evdwsoat15@gmail.com"
-    MAIL_FROM_NAME          = "POS Tech"
+    DB_HOST           = data.terraform_remote_state.database.outputs.rds_address
+    DB_PORT           = tostring(data.terraform_remote_state.database.outputs.rds_port)
+    DB_DATABASE       = data.terraform_remote_state.database.outputs.db_name
+    DB_USERNAME       = "techchallenge"
+    QUEUE_CONNECTION  = "database"
+    CACHE_STORE       = "database"
+    MAIL_MAILER       = "log"
+    MAIL_HOST         = "smtp.gmail.com"
+    MAIL_PORT         = "587"
+    MAIL_FROM_ADDRESS = "evdwsoat15@gmail.com"
+    MAIL_FROM_NAME    = "POS Tech"
   }
 }
 

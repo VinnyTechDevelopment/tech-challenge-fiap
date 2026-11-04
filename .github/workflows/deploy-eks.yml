@@ -58,20 +58,12 @@ jobs:
       TF_VAR_newrelic_license_key: ${{ secrets.NEWRELIC_LICENSE_KEY }}
       TF_VAR_ghcr_username: ${{ secrets.GHCR_USERNAME }}
       TF_VAR_ghcr_token: ${{ secrets.GHCR_TOKEN }}
-      # O provider newrelic (infra/newrelic.tf) exige api_key/account_id no
-      # schema dele — sem essas env vars presentes E não-vazias, o Terraform
-      # fica preso pedindo input interativo pra elas, e como o runner não tem
-      # TTY, trava pra sempre em vez de falhar rápido (mesmo problema que já
-      # vimos com var.lab_role_arn no infra-kubernetes-fiap; confirmado com um
-      # teste isolado — string vazia NÃO evita o prompt, precisa de um valor
-      # de verdade, mesmo que fictício). Usa o secret real quando existir,
-      # senão cai num valor fictício — newrelic_enabled continua false por
-      # padrão, então esse valor nunca é usado pra chamar a API de verdade.
-      NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY || 'NRAK-PLACEHOLDER-ATE-TER-CONTA' }}
-      NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID || '0000000' }}
-      # API Key + Account ID já nos secrets acima — dashboards como código
-      # ligados de verdade.
-      TF_VAR_newrelic_enabled: "true"
+      # Provider newrelic (dashboards como código, infra/newrelic.tf). Os três
+      # secrets do New Relic são obrigatórios — o step "Verificar secrets do
+      # New Relic" falha o job se algum estiver ausente, em vez de subir a
+      # aplicação sem observabilidade.
+      NEW_RELIC_API_KEY: ${{ secrets.NEW_RELIC_API_KEY }}
+      NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -115,6 +107,17 @@ jobs:
           # não dá pra usar direto — mesmo transform que build-ghcr.yml faz.
           image_repository="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
           echo "image_repository=$image_repository" >> "$GITHUB_OUTPUT"
+
+      - name: Verificar secrets do New Relic
+        run: |
+          missing=""
+          [ -n "$TF_VAR_newrelic_license_key" ] || missing="$missing NEWRELIC_LICENSE_KEY"
+          [ -n "$NEW_RELIC_API_KEY" ] || missing="$missing NEW_RELIC_API_KEY"
+          [ -n "$NEW_RELIC_ACCOUNT_ID" ] || missing="$missing NEW_RELIC_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Secrets do New Relic ausentes:$missing"
+            exit 1
+          fi
 
       - uses: hashicorp/setup-terraform@v3
         with:

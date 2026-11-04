@@ -31,9 +31,9 @@ A partir desta fase a solução deixa de rodar só em Minikube e passa a ser pro
 repositórios separados, cada um com seu próprio CI/CD:
 
 - **`tech-challenge-fiap`** (este repositório) — API Laravel, agora implantada em EKS.
-- [`infra-kubernetes-fiap`](https://github.com/viniciussalvarenga/infra-kubernetes-fiap) — VPC + cluster EKS.
-- [`infra-database-fiap`](https://github.com/viniciussalvarenga/infra-database-fiap) — RDS MySQL gerenciado.
-- [`lambda-auth-cpf-fiap`](https://github.com/viniciussalvarenga/lambda-auth-cpf-fiap) — Function Serverless de autenticação por CPF + API Gateway.
+- [`infra-kubernetes-fiap`](https://github.com/VinnyTechDevelopment/infra-kubernetes-fiap) — VPC + cluster EKS.
+- [`infra-database-fiap`](https://github.com/VinnyTechDevelopment/infra-database-fiap) — RDS MySQL gerenciado.
+- [`lambda-auth-cpf-fiap`](https://github.com/VinnyTechDevelopment/lambda-auth-cpf-fiap) — Function Serverless de autenticação por CPF + API Gateway.
 
 ![Arquitetura da Fase 3](docs/Fase3/workflow.jpg)
 
@@ -219,8 +219,8 @@ Até a Fase 2 este ambiente rodava num cluster **Minikube local**. A partir da F
 cluster **EKS real na AWS**, e o banco deixou de ser um `Deployment` MySQL dentro do cluster para
 virar um **RDS gerenciado** — ambos provisionados por repositórios próprios, não por este:
 
-- [`infra-kubernetes-fiap`](https://github.com/viniciussalvarenga/infra-kubernetes-fiap) — cria a VPC e o cluster EKS.
-- [`infra-database-fiap`](https://github.com/viniciussalvarenga/infra-database-fiap) — cria o RDS MySQL, dentro da mesma VPC.
+- [`infra-kubernetes-fiap`](https://github.com/VinnyTechDevelopment/infra-kubernetes-fiap) — cria a VPC e o cluster EKS.
+- [`infra-database-fiap`](https://github.com/VinnyTechDevelopment/infra-database-fiap) — cria o RDS MySQL, dentro da mesma VPC.
 
 Este repositório só entra **depois** dos dois acima já aplicados: o `infra/` daqui lê os outputs
 deles via `terraform_remote_state` (endpoint do cluster, endereço do RDS etc.) e provisiona só o que
@@ -288,11 +288,13 @@ customer_jwt_secret = "IDENTICA_A_DO_LAMBDA_AUTH_CPF"
 ghcr_username = "SEU_USUARIO_GITHUB"
 ghcr_token    = "SEU_TOKEN_COM_read:packages"
 
+# New Relic (ligado por padrão; use newrelic_enabled = false para subir sem)
+newrelic_license_key = "SUA_LICENSE_KEY"
+
 # Opcionais — já têm default em variables.tf, só defina se quiser sobrescrever:
 # ghcr_email           = "SEU_EMAIL"
 # mail_username        = "SEU_EMAIL_SMTP"
 # mail_password        = "SUA_SENHA_DE_APP"
-# newrelic_license_key = "SUA_LICENSE_KEY"
 ```
 
 **3. Aplique com Terraform**
@@ -399,39 +401,31 @@ repositórios, essa atualização passa a ser feita em um lugar só.
 
 ## Observabilidade (New Relic)
 
-O código e a infraestrutura já estão prontos pro New Relic, mas **ainda não existe conta criada** —
-por isso tudo fica desligado por padrão (agente instalado mas inerte na imagem Docker, dashboards com
-`newrelic_enabled = false` em `infra/variables.tf`). O que já está pronto:
+O New Relic está **ligado por padrão** em todos os ambientes do EKS (`newrelic_enabled = true` em
+`infra/variables.tf`). As credenciais ficam nos secrets da **organization** `VinnyTechDevelopment`,
+compartilhados pelos repositórios:
 
-- **Agente PHP**: instalado no `Dockerfile` (pacote `newrelic-php5`). Em runtime,
-  `docker/entrypoint.sh` só escreve a license key no `newrelic.ini` se a env var
-  `NEWRELIC_LICENSE_KEY` estiver setada — sem ela, o agente não reporta nada e a aplicação sobe
-  normalmente.
-- **Dashboards como código**: `infra/newrelic.tf` declara dois `newrelic_one_dashboard` (Ordens de
-  Serviço e Infraestrutura) cobrindo os itens pedidos na Fase 3 — volume diário de OS, tempo médio
-  por status, erros de integração, latência de API, CPU/memória do Kubernetes e uptime — atrás de
-  `count = var.newrelic_enabled ? 1 : 0`.
+| Secret | Usado por |
+|---|---|
+| `NEWRELIC_LICENSE_KEY` | Agente PHP (via Secret do K8s) e integração de cluster (`infra-kubernetes-fiap`) |
+| `NEW_RELIC_API_KEY` | Provider Terraform `newrelic/newrelic` (dashboards como código) |
+| `NEW_RELIC_ACCOUNT_ID` | Provider Terraform |
 
-### Passo a passo para ligar de verdade
+O `deploy-eks.yml` falha logo no início se algum deles estiver ausente, e o Terraform tem um bloco
+`check` que acusa `newrelic_enabled = true` sem license key. A aplicação não sobe "sem
+observabilidade" sem que alguém perceba.
 
-1. Crie uma conta free em [newrelic.com](https://newrelic.com/signup).
-2. Gere uma **License Key** (Account settings → API keys) — é o que o agente PHP usa para enviar
-   dados.
-3. Gere uma **User API Key** (mesmo local) — é o que o provider Terraform `newrelic/newrelic` usa
-   para criar os dashboards via API.
-4. Anote o **Account ID** (aparece no mesmo painel de API keys).
-5. Configure os secrets no nível da **organization** do GitHub (`VinnyTechDevelopment` → Settings →
-   Secrets and variables → Actions), compartilhados pelos 4 repositórios:
-   - `NEWRELIC_LICENSE_KEY` (usada pelo agente PHP, via Secret do K8s)
-   - `NEW_RELIC_API_KEY` (User API Key, usada só pelo provider Terraform)
-   - `NEW_RELIC_ACCOUNT_ID`
-6. Em `infra/deploy-eks.yml`, descomente as três linhas marcadas com `NEW_RELIC_*` /
-   `TF_VAR_newrelic_enabled` no `env:` do job.
-7. Rode `terraform apply` (via push em `main`/`homologacao`, ou `make infra-apply` local) — os
-   dashboards aparecem em New Relic One, e o agente PHP passa a reportar transações, erros e (via a
-   integração de Kubernetes do repositório `infra-kubernetes-fiap`) métricas de CPU/memória dos
-   pods.
+O que está ativo:
 
-Depois que o agente estiver reportando dados de verdade, revise as queries NRQL em
-`infra/newrelic.tf` — foram escritas sem uma conta real pra validar contra, então nomes de evento ou
-atributo podem precisar de ajuste fino.
+- **APM + distributed tracing**: agente `newrelic-php5` instalado no `Dockerfile`, com
+  `distributed_tracing_enabled` e encaminhamento de logs (logs in context). O `docker/entrypoint.sh`
+  grava a license key no `newrelic.ini` antes de subir o PHP; por isso o Deployment não sobrescreve o
+  `command` do container (ver comentário em `infra/app.tf`).
+- **Dashboards como código** (`infra/newrelic.tf`): *Ordens de Serviço* (volume diário, tempo
+  médio por status, erros de integração) e *Infraestrutura* (latência p95, CPU/memória do
+  namespace, uptime).
+- **Kubernetes**: o `nri-bundle` do repositório `infra-kubernetes-fiap` reporta métricas de
+  pods/nodes, eventos e logs do cluster (`Infrastructure → Kubernetes → techchallenge-eks`).
+
+Rodando localmente com Docker Compose, o agente fica inerte (sem `NEWRELIC_LICENSE_KEY`), sem
+impacto no desenvolvimento.

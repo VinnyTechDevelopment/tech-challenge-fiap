@@ -68,7 +68,7 @@ variable "customer_jwt_secret" {
 }
 
 variable "newrelic_license_key" {
-  description = "License key do New Relic. Opcional por enquanto — a app ainda não tem o agente instalado na imagem Docker, só a variável já fica disponível pro Secret."
+  description = "License key do New Relic, usada pelo agente PHP (docker/entrypoint.sh grava no newrelic.ini). Obrigatória quando newrelic_enabled = true."
   type        = string
   sensitive   = true
   default     = ""
@@ -80,9 +80,9 @@ variable "newrelic_app_name" {
 }
 
 variable "newrelic_enabled" {
-  description = "Liga os dashboards New Relic provisionados via infra/newrelic.tf (newrelic_one_dashboard). Fica false até existir conta/License Key/User API Key configuradas — ver README, seção Observabilidade."
+  description = "Liga o agente PHP e os dashboards New Relic (infra/newrelic.tf). Ligado por padrão; só desligue para rodar sem conta New Relic."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "mail_username" {
