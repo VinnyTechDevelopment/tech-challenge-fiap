@@ -9,7 +9,7 @@ resource "kubernetes_job_v1" "migrate" {
   }
 
   spec {
-    backoff_limit             = 3
+    backoff_limit              = 3
     ttl_seconds_after_finished = 300
 
     template {
@@ -28,8 +28,8 @@ resource "kubernetes_job_v1" "migrate" {
         }
 
         init_container {
-          name    = "wait-for-db"
-          image   = "busybox:1.36"
+          name  = "wait-for-db"
+          image = "busybox:1.36"
           command = ["sh", "-c", <<-EOT
             until nc -z ${data.terraform_remote_state.database.outputs.rds_address} ${data.terraform_remote_state.database.outputs.rds_port}; do
               echo "aguardando RDS...";

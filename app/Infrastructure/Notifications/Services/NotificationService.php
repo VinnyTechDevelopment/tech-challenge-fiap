@@ -6,8 +6,8 @@ use App\Domain\Customer\Interfaces\CustomerRepositoryInterface;
 use App\Domain\Notification\Entities\Notification as NotificationEntity;
 use App\Domain\Notification\Interfaces\NotificationServiceInterface;
 use App\Domain\Notification\ValueObjects\NotificationType;
-use Illuminate\Support\Facades\Notification;
 use App\Infrastructure\Notifications\GenericNotification;
+use Illuminate\Support\Facades\Notification;
 
 class NotificationService implements NotificationServiceInterface
 {
@@ -25,10 +25,10 @@ class NotificationService implements NotificationServiceInterface
 
     private function mapTypeToChannel(NotificationType $type): string
     {
-        return match($type) {
+        return match ($type) {
             NotificationType::EMAIL => 'mail',
-            NotificationType::SMS   => 'vonage',
-            NotificationType::PUSH  => 'fcm',
+            NotificationType::SMS => 'vonage',
+            NotificationType::PUSH => 'fcm',
         };
     }
 
@@ -42,7 +42,7 @@ class NotificationService implements NotificationServiceInterface
 
         $customer = $this->customerRepository->findById($recipientId);
 
-        if (!$customer) {
+        if (! $customer) {
             throw new \DomainException("Cliente '{$recipientId}' nao encontrado para envio de notificacao.");
         }
 

@@ -16,10 +16,10 @@ RUN apt-get update && apt-get install -y \
 && docker-php-ext-enable pcov \
 && rm -rf /var/lib/apt/lists/*
 
-# Agente PHP do New Relic. Fica instalado mas inerte enquanto
-# NEWRELIC_LICENSE_KEY não for setada em runtime (ver docker/entrypoint.sh) —
-# não há conta/License Key ainda, mas deixamos pronto pra ligar (ver README,
-# seção Observabilidade).
+# Agente PHP do New Relic (APM + distributed tracing). A License Key é
+# injetada em runtime pelo docker/entrypoint.sh a partir de
+# NEWRELIC_LICENSE_KEY (Secret do K8s); sem ela (dev local) o agente fica
+# inerte e a aplicação sobe normalmente.
 # A chave de assinatura do repositório da New Relic usa um certificado
 # autoassinado em SHA1, que o verificador de política do Debian trixie
 # (sqv) rejeita desde 2026-02-01 independente de como o keyring é
@@ -42,7 +42,10 @@ RUN echo 'extension = "/usr/lib/newrelic-php5/agent/x64/newrelic-20240924.so"' >
  && echo 'newrelic.license = ""' >> /usr/local/etc/php/conf.d/newrelic.ini \
  && echo 'newrelic.appname = "POS Tech"' >> /usr/local/etc/php/conf.d/newrelic.ini \
  && echo 'newrelic.daemon.address = "/tmp/.newrelic.sock"' >> /usr/local/etc/php/conf.d/newrelic.ini \
- && echo 'newrelic.enabled = true' >> /usr/local/etc/php/conf.d/newrelic.ini
+ && echo 'newrelic.enabled = true' >> /usr/local/etc/php/conf.d/newrelic.ini \
+ && echo 'newrelic.distributed_tracing_enabled = true' >> /usr/local/etc/php/conf.d/newrelic.ini \
+ && echo 'newrelic.application_logging.enabled = true' >> /usr/local/etc/php/conf.d/newrelic.ini \
+ && echo 'newrelic.application_logging.forwarding.enabled = true' >> /usr/local/etc/php/conf.d/newrelic.ini
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 

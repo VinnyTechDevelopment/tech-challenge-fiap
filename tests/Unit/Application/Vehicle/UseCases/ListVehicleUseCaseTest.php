@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 class ListVehicleUseCaseTest extends TestCase
 {
     private VehicleRepositoryInterface&MockInterface $repository;
+
     private ListVehicleUseCase $useCase;
 
     protected function setUp(): void

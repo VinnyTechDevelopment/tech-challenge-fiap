@@ -1,0 +1,22 @@
+meta {
+  name: Iniciar diagnóstico
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{executionUrl}}/execution/{{serviceOrderId}}/diagnosis
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "notes": "Verificar ruido na suspensao"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

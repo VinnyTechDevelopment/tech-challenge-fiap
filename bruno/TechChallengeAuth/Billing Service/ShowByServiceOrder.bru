@@ -1,0 +1,20 @@
+meta {
+  name: Orçamento e pagamento da OS
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{billingUrl}}/billing/service-orders/{{serviceOrderId}}
+  body: none
+  auth: bearer
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+auth:bearer {
+  token: {{token}}
+}

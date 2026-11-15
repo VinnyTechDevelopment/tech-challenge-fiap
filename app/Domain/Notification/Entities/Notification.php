@@ -15,42 +15,58 @@ class Notification
         private readonly string $recipientId, // ID do Customer ou outro domínio
         private readonly NotificationType $type, // E-mail, SMS, Push
         private string $subject,
-        private string $content,        
+        private string $content,
         private NotificationStatus $status,
         private readonly DateTimeImmutable $createdAt,
         private ?DateTimeImmutable $sentAt = null
     ) {}
 
     // Getters
-    public function getId(): string {
+    public function getId(): string
+    {
         return $this->id;
     }
-    public function getRecipientId(): string {
+
+    public function getRecipientId(): string
+    {
         return $this->recipientId;
     }
-    public function getStatus(): NotificationStatus {
+
+    public function getStatus(): NotificationStatus
+    {
         return $this->status;
     }
-    public function getSubject(): string {
+
+    public function getSubject(): string
+    {
         return $this->subject;
     }
-    public function getContent(): string {
+
+    public function getContent(): string
+    {
         return $this->content;
     }
-    public function getCreatedAt(): DateTimeImmutable {
+
+    public function getCreatedAt(): DateTimeImmutable
+    {
         return $this->createdAt;
     }
-    public function getSentAt(): ?DateTimeImmutable {
+
+    public function getSentAt(): ?DateTimeImmutable
+    {
         return $this->sentAt;
     }
-    public function getType(): NotificationType {
+
+    public function getType(): NotificationType
+    {
         return $this->type;
     }
+
     // Métodos de Negócio (Comportamento)
     public function markAsSent(): void
     {
         $this->status = NotificationStatus::SENT;
-        $this->sentAt = new DateTimeImmutable();
+        $this->sentAt = new DateTimeImmutable;
     }
 
     public function markAsFailed(): void

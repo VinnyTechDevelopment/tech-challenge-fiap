@@ -2,8 +2,8 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
-use App\Domain\Notification\Interfaces\NotificationRepositoryInterface;
 use App\Domain\Notification\Entities\Notification as NotificationEntity;
+use App\Domain\Notification\Interfaces\NotificationRepositoryInterface;
 use App\Domain\Notification\ValueObjects\NotificationStatus;
 use App\Domain\Notification\ValueObjects\NotificationType;
 use App\Infrastructure\Persistence\Eloquent\Models\NotificationModel;
@@ -16,18 +16,22 @@ class NotificationRepositoryEloquent implements NotificationRepositoryInterface
             ['id' => $notification->getId()],
             [
                 'recipient_id' => $notification->getRecipientId(),
-                'type'         => $notification->getType()->value,
-                'subject'      => $notification->getSubject(),
-                'content'      => $notification->getContent(),
-                'status'       => $notification->getStatus()->value,
-                'sent_at'      => $notification->getSentAt()?->format('Y-m-d H:i:s'),
+                'type' => $notification->getType()->value,
+                'subject' => $notification->getSubject(),
+                'content' => $notification->getContent(),
+                'status' => $notification->getStatus()->value,
+                'sent_at' => $notification->getSentAt()?->format('Y-m-d H:i:s'),
             ]
         );
     }
+
     public function findById(string $id): ?NotificationEntity
     {
         $model = NotificationModel::find($id);
-        if (!$model) return null;
+        if (! $model) {
+            return null;
+        }
+
         return new NotificationEntity(
             $model->id,
             $model->recipient_id,
@@ -46,7 +50,6 @@ class NotificationRepositoryEloquent implements NotificationRepositoryInterface
             ->skip(($page - 1) * $perPage)
             ->take($perPage)
             ->get()
-            ->toArray()
-        ;
+            ->toArray();
     }
 }

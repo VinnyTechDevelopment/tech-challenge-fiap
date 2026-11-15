@@ -1,0 +1,23 @@
+meta {
+  name: Catálogo: criar serviço
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{executionUrl}}/catalog/services
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Revisao completa",
+    "price": 300
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

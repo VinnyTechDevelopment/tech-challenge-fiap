@@ -1,0 +1,26 @@
+meta {
+  name: Simular pagamento (PAYMENT_GATEWAY=fake)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{billingUrl}}/billing/payments/{{paymentId}}/simulate
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "status": "approved"
+  }
+}
+
+docs {
+  Use "rejected" para demonstrar a compensação (CancelQuote).
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

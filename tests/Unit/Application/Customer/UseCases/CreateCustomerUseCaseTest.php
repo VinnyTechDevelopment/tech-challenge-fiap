@@ -13,6 +13,7 @@ use Tests\TestCase;
 class CreateCustomerUseCaseTest extends TestCase
 {
     private CustomerRepositoryInterface&MockInterface $repository;
+
     private CreateCustomerUseCase $useCase;
 
     protected function setUp(): void

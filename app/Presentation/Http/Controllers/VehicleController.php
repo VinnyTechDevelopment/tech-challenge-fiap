@@ -2,11 +2,11 @@
 
 namespace App\Presentation\Http\Controllers;
 
-use App\Application\Vehicle\UseCases\CreateVehicleUseCase;
 use App\Application\Vehicle\DTOs\CreateVehicleDTO;
 use App\Application\Vehicle\DTOs\ListVehicleDTO;
 use App\Application\Vehicle\DTOs\ShowVehicleDTO;
 use App\Application\Vehicle\DTOs\UpdateVehicleDto;
+use App\Application\Vehicle\UseCases\CreateVehicleUseCase;
 use App\Application\Vehicle\UseCases\DeleteVehicleUseCase;
 use App\Application\Vehicle\UseCases\ListVehicleUseCase;
 use App\Application\Vehicle\UseCases\ShowVehicleUseCase;
@@ -31,7 +31,7 @@ class VehicleController
 
         return response()->json([
             'id' => $vehicle->id,
-            'message' => 'Veículo cadastrado com sucesso'
+            'message' => 'Veículo cadastrado com sucesso',
         ]);
     }
 
@@ -57,10 +57,10 @@ class VehicleController
         $vehicle = $useCase->execute($dto);
 
         return response()->json([
-            'id'    => $vehicle->id,
+            'id' => $vehicle->id,
             'brand' => $vehicle->brand,
             'model' => $vehicle->model,
-            'year'  => $vehicle->year,
+            'year' => $vehicle->year,
             'plate' => $vehicle->plate->getValue(),
         ]);
     }
@@ -85,13 +85,14 @@ class VehicleController
                 'year' => $vehicle->year,
                 'plate' => $vehicle->plate->getValue(),
             ],
-            'message' => 'Veículo atualizado com sucesso'
+            'message' => 'Veículo atualizado com sucesso',
         ], 200);
     }
 
     public function destroy(string $id, DeleteVehicleUseCase $useCase)
     {
         $useCase->execute($id);
+
         return response()->json(null, 204);
     }
 }

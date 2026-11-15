@@ -2,7 +2,6 @@
 
 namespace App\Presentation\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ListCustomerRequest extends FormRequest
@@ -16,7 +15,7 @@ class ListCustomerRequest extends FormRequest
     {
         return [
             'page' => 'integer|min:1',
-            'perPage' => 'integer|min:1'
+            'perPage' => 'integer|min:1',
         ];
     }
 }

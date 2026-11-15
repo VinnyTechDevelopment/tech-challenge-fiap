@@ -2,10 +2,10 @@
 
 namespace App\Application\Vehicle\UseCases;
 
-use App\Domain\Vehicle\Interfaces\VehicleRepositoryInterface;
-use App\Domain\Vehicle\Entities\Vehicle;
-use App\Domain\Vehicle\ValueObjects\Plate;
 use App\Application\Vehicle\DTOs\CreateVehicleDTO;
+use App\Domain\Vehicle\Entities\Vehicle;
+use App\Domain\Vehicle\Interfaces\VehicleRepositoryInterface;
+use App\Domain\Vehicle\ValueObjects\Plate;
 
 class CreateVehicleUseCase
 {

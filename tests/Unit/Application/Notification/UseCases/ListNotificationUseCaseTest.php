@@ -9,13 +9,14 @@ use App\Domain\Notification\Interfaces\NotificationRepositoryInterface;
 use App\Domain\Notification\ValueObjects\NotificationStatus;
 use App\Domain\Notification\ValueObjects\NotificationType;
 use DateTimeImmutable;
-use PHPUnit\Framework\TestCase;
 use Mockery;
 use Mockery\MockInterface;
+use PHPUnit\Framework\TestCase;
 
 class ListNotificationUseCaseTest extends TestCase
 {
     private MockInterface $repository;
+
     private ListNotificationUseCase $useCase;
 
     protected function setUp(): void
@@ -30,6 +31,7 @@ class ListNotificationUseCaseTest extends TestCase
         parent::tearDown();
         Mockery::close();
     }
+
     public function test_list_notification()
     {
         $notifications = $this->makeNotifications();
@@ -56,8 +58,8 @@ class ListNotificationUseCaseTest extends TestCase
             subject: 'test',
             content: 'test',
             status: NotificationStatus::PENDING,
-            createdAt: new DateTimeImmutable(),
-            sentAt: new DateTimeImmutable()
+            createdAt: new DateTimeImmutable,
+            sentAt: new DateTimeImmutable
         );
     }
 

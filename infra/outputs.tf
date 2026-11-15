@@ -22,3 +22,13 @@ output "hpa_name" {
   description = "Nome do HorizontalPodAutoscaler da aplicação"
   value       = kubernetes_horizontal_pod_autoscaler_v2.app.metadata[0].name
 }
+
+output "saga_replies_queue_url" {
+  description = "URL da fila SQS de respostas da saga (entrada do os-service)"
+  value       = aws_sqs_queue.saga_replies.url
+}
+
+output "worker_deployment_name" {
+  description = "Deployment dos processos de background (consumer, outbox, scheduler)"
+  value       = kubernetes_deployment_v1.worker.metadata[0].name
+}

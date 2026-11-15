@@ -20,14 +20,14 @@ class AuthenticateCustomerJwt
     {
         $header = $request->header('Authorization', '');
 
-        if (!str_starts_with($header, 'Bearer ')) {
+        if (! str_starts_with($header, 'Bearer ')) {
             return response()->json(['message' => 'Token não informado.'], 401);
         }
 
         $token = substr($header, 7);
         $secret = config('services.customer_jwt.secret');
 
-        if (!$secret) {
+        if (! $secret) {
             return response()->json(['message' => 'Autenticação de cliente não configurada.'], 500);
         }
 

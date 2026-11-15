@@ -28,8 +28,8 @@ resource "kubernetes_deployment_v1" "app" {
         # Antes esperava o Service "mysql" dentro do cluster. Agora espera o
         # RDS (fora do cluster) ficar acessível.
         init_container {
-          name    = "wait-for-db"
-          image   = "busybox:1.36"
+          name  = "wait-for-db"
+          image = "busybox:1.36"
           command = ["sh", "-c", <<-EOT
             until nc -z ${data.terraform_remote_state.database.outputs.rds_address} ${data.terraform_remote_state.database.outputs.rds_port}; do
               echo "aguardando RDS...";
@@ -75,9 +75,9 @@ resource "kubernetes_deployment_v1" "app" {
               port = 8000
             }
             initial_delay_seconds = 30
-            period_seconds         = 15
-            timeout_seconds        = 5
-            failure_threshold      = 3
+            period_seconds        = 15
+            timeout_seconds       = 5
+            failure_threshold     = 3
           }
 
           readiness_probe {
@@ -86,9 +86,9 @@ resource "kubernetes_deployment_v1" "app" {
               port = 8000
             }
             initial_delay_seconds = 15
-            period_seconds         = 10
-            timeout_seconds        = 3
-            failure_threshold      = 3
+            period_seconds        = 10
+            timeout_seconds       = 3
+            failure_threshold     = 3
           }
 
           resources {
@@ -181,7 +181,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "app" {
     behavior {
       scale_up {
         stabilization_window_seconds = 60
-        select_policy = "Max"
+        select_policy                = "Max"
         policy {
           type           = "Pods"
           value          = 2
@@ -190,7 +190,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "app" {
       }
       scale_down {
         stabilization_window_seconds = 300
-        select_policy = "Max"
+        select_policy                = "Max"
         policy {
           type           = "Pods"
           value          = 1

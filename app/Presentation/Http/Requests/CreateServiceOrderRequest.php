@@ -13,20 +13,22 @@ class CreateServiceOrderRequest extends FormRequest
     }
 
     /**
+     * Serviços e peças são validados (e precificados) pelo execution-service,
+     * dono do catálogo — não há mais "exists:services/items" aqui.
+     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'customer_id'            => 'required|uuid|exists:customers,id',
-            'vehicle_id'             => 'required|uuid|exists:vehicles,id',
-            'services'               => 'required|array|min:1',
-            'services.*.service_id'  => 'required|uuid|exists:services,id',
-            'services.*.quantity'    => 'required|numeric|min:0.01',
-            'items'                  => 'nullable|array',
-            'items.*.item_id'        => 'required_with:items|uuid|exists:items,id',
-            'items.*.quantity'       => 'required_with:items|numeric|min:0.01',
-            'send_quote'             => 'sometimes|boolean',
+            'customer_id' => 'required|uuid|exists:customers,id',
+            'vehicle_id' => 'required|uuid|exists:vehicles,id',
+            'services' => 'required|array|min:1',
+            'services.*.service_id' => 'required|string',
+            'services.*.quantity' => 'required|numeric|min:0.01',
+            'items' => 'nullable|array',
+            'items.*.item_id' => 'required_with:items|string',
+            'items.*.quantity' => 'required_with:items|numeric|min:0.01',
         ];
     }
 }

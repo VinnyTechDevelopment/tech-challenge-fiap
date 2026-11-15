@@ -29,7 +29,7 @@ class NotifyCustomerOnServiceOrderFinalized
         $serviceOrder = $event->serviceOrder;
         $customer = $this->customerRepository->findById($serviceOrder->customerId);
 
-        if (!$customer) {
+        if (! $customer) {
             return;
         }
 
@@ -40,7 +40,7 @@ class NotifyCustomerOnServiceOrderFinalized
             'Sua ordem de serviço foi concluída',
             "Olá {$customer->name}, a sua ordem de serviço foi concluída e o veículo está pronto para retirada.",
             NotificationStatus::PENDING,
-            new \DateTimeImmutable()
+            new \DateTimeImmutable
         );
 
         $this->notificationRepository->save($notification);

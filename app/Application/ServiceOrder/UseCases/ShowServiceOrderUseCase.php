@@ -16,7 +16,7 @@ class ShowServiceOrderUseCase
     {
         $serviceOrder = $this->repository->findById($dto->id);
 
-        if (!$serviceOrder) {
+        if (! $serviceOrder) {
             throw new \DomainException('Ordem de servico nao encontrada');
         }
 

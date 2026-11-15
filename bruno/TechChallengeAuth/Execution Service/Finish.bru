@@ -1,0 +1,16 @@
+meta {
+  name: Finalizar execução (notifica os-service)
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{executionUrl}}/execution/{{serviceOrderId}}/finish
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

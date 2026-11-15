@@ -7,8 +7,11 @@ use InvalidArgumentException;
 class Document
 {
     private string $value;
+
     private const INVALID_DOCUMENT_MESSAGE = 'Documento inválido. Deve ser um CPF ou CNPJ válido.';
+
     private const INVALID_CPF_MESSAGE = 'CPF inválido.';
+
     private const INVALID_CNPJ_MESSAGE = 'CNPJ inválido.';
 
     public function __construct(string $document)
@@ -24,7 +27,7 @@ class Document
             throw new InvalidArgumentException(self::INVALID_DOCUMENT_MESSAGE);
         }
 
-        if (!preg_match('/^[0-9]{11}$|^[0-9]{14}$/', $cpfCnpj)) {
+        if (! preg_match('/^[0-9]{11}$|^[0-9]{14}$/', $cpfCnpj)) {
             throw new InvalidArgumentException(self::INVALID_DOCUMENT_MESSAGE);
         }
 

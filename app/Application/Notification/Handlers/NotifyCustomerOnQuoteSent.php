@@ -24,12 +24,13 @@ class NotifyCustomerOnQuoteSent
         $serviceOrder = $event->serviceOrder;
         $customer = $this->customerRepository->findById($serviceOrder->customerId);
 
-        if (!$customer) {
+        if (! $customer) {
             return;
         }
 
-        $approvalLink = url("/api/service-order/approve/{$serviceOrder->approvalToken}");
-        $rejectLink = url("/api/service-order/reject/{$serviceOrder->approvalToken}");
+        // Links gerados pelo billing-service (dono do orçamento).
+        $approvalLink = $event->approvalUrl;
+        $rejectLink = $event->rejectUrl;
 
         $notification = new EntityNotification(
             Str::uuid()->toString(),
@@ -38,7 +39,7 @@ class NotifyCustomerOnQuoteSent
             'Orçamento da sua ordem de serviço disponível',
             "Olá {$customer->name}, o orçamento da sua ordem de serviço foi gerado. Total: R$ {$serviceOrder->totalBudget}.\n\nClique em um dos links abaixo para decidir:\nAprovar: {$approvalLink}\nRecusar: {$rejectLink}",
             NotificationStatus::PENDING,
-            new \DateTimeImmutable()
+            new \DateTimeImmutable
         );
 
         $this->notificationRepository->save($notification);

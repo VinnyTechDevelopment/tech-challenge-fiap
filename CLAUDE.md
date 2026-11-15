@@ -69,13 +69,15 @@ HTTP Request
   ← JSON Response
 ```
 
-## Domínios Existentes
+## Domínios Existentes (os-service — Fase 4)
 
-| Domínio              | Status                   | Rotas registradas |
-|----------------------|--------------------------|-------------------|
-| `Vehicle`            | Completo                 | Sim               |
-| `Customer`           | Completo                 | Nao (pendente)    |
-| `Almoxarifado/Pecas` | Em desenvolvimento       | Nao               |
+| Domínio | Observação |
+|---|---|
+| `ServiceOrder` | OS com snapshot de serviços/peças; status conduzido pela saga |
+| `Saga` | `ServiceOrderSaga` + `App\Application\Saga\ServiceOrderSagaOrchestrator` (orquestrador) |
+| `Customer`, `Vehicle`, `Notification` | inalterados |
+
+Catálogo/estoque/execução estão no **execution-service** e orçamento/pagamento no **billing-service** (repositórios próprios). Comunicação: SQS (`app/Application/Messaging`, `app/Infrastructure/Messaging`, outbox transacional) e REST para o catálogo (`CatalogClientInterface`). Nunca acesse o banco de outro serviço.
 
 ## Convenções de Nomenclatura
 
@@ -122,24 +124,9 @@ php artisan jwt:secret
 
 ## Rotas da API
 
-**Base URL:** `http://localhost:8080/api`
+Ver `routes/api.php` e `openapi.yaml`. Principais: `POST /service-order` (202, inicia a saga), `GET /service-order/{id}/history`, `POST /service-order/{id}/cancel`, `PATCH /service-order/{id}/status` (só `entregue`), `GET /internal/customers/by-document/{cpf}` (X-Internal-Token).
 
-```
-# Publico
-POST   /auth/register
-POST   /auth/login
-POST   /auth/refresh
-POST   /auth/logout
-GET    /auth/me
-
-# Protegido (Bearer JWT)
-GET    /vehicle/
-POST   /vehicle/
-GET    /vehicle/{id}
-PUT    /vehicle/{id}
-```
-
-Rotas sao definidas em `routes/api.php`. Toda rota protegida usa o middleware `auth:api`.
+Testes: `make test` (PHPUnit + MySQL) e `vendor/bin/behat` (BDD da saga). Workers: `messaging:consume`, `outbox:relay`, `schedule:work` (`saga:timeouts`).
 
 ## Adicionando um Novo Dominio (Checklist)
 

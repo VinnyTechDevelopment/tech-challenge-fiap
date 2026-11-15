@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 class ShowCustomerUseCaseTest extends TestCase
 {
     private CustomerRepositoryInterface&MockInterface $repository;
+
     private ShowCustomerUseCase $useCase;
 
     protected function setUp(): void

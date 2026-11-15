@@ -3,7 +3,6 @@
 namespace Tests\Feature\Infrastructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\Customer\Entities\Customer;
-use App\Infrastructure\Persistence\Eloquent\Models\CustomerModel;
 use App\Infrastructure\Persistence\Eloquent\Repositories\CustomerRepositoryEloquent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +18,7 @@ class CustomerRepositoryEloquentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->repository = new CustomerRepositoryEloquent();
+        $this->repository = new CustomerRepositoryEloquent;
     }
 
     private function authenticateUser(): User

@@ -2,7 +2,6 @@
 
 namespace App\Presentation\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateCustomerRequest extends FormRequest

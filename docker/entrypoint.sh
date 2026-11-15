@@ -1,9 +1,8 @@
 #!/bin/sh
 set -e
 
-# Sem NEWRELIC_LICENSE_KEY (caso padrão hoje, enquanto não existe conta New
-# Relic), o agente fica instalado mas inerte: nada é escrito no ini e o PHP
-# sobe normalmente sem reportar nada.
+# Em EKS a NEWRELIC_LICENSE_KEY vem do Secret do K8s (secret de organização
+# no GitHub). Sem ela (dev local), o agente fica inerte e o PHP sobe normalmente.
 if [ -n "$NEWRELIC_LICENSE_KEY" ]; then
   ini_file=$(find /etc /usr/local/etc -iname "newrelic.ini" 2>/dev/null | head -n1)
   if [ -n "$ini_file" ]; then

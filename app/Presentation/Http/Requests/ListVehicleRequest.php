@@ -24,7 +24,7 @@ class ListVehicleRequest extends FormRequest
     {
         return [
             'page' => 'integer|min:1',
-            'perPage' => 'integer|min:1'
+            'perPage' => 'integer|min:1',
         ];
     }
 }

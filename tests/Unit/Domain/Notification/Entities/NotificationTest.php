@@ -40,9 +40,9 @@ class NotificationTest extends TestCase
     {
         $notification = $this->makeNotification();
 
-        $before = new DateTimeImmutable();
+        $before = new DateTimeImmutable;
         $notification->markAsSent();
-        $after = new DateTimeImmutable();
+        $after = new DateTimeImmutable;
 
         $this->assertSame(NotificationStatus::SENT, $notification->getStatus());
         $this->assertNotNull($notification->getSentAt());

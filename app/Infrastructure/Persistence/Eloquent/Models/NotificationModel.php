@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class NotificationModel extends Model
 {
     protected $table = 'notifications';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -17,6 +19,6 @@ class NotificationModel extends Model
         'subject',
         'content',
         'status',
-        'sent_at'
+        'sent_at',
     ];
 }

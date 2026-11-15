@@ -3,17 +3,10 @@
 namespace Tests\Unit\Domain\ServiceOrder\Entities;
 
 use App\Domain\ServiceOrder\Entities\ServiceOrder;
-use Illuminate\Support\Carbon;
 use PHPUnit\Framework\TestCase;
 
 class ServiceOrderTest extends TestCase
 {
-    protected function tearDown(): void
-    {
-        Carbon::setTestNow();
-        parent::tearDown();
-    }
-
     private function makeServiceOrder(): ServiceOrder
     {
         return ServiceOrder::create(
@@ -26,97 +19,108 @@ class ServiceOrderTest extends TestCase
 
     public function test_create_generates_uuid_and_calculates_totals(): void
     {
-        $serviceOrder = $this->makeServiceOrder();
+        $order = $this->makeServiceOrder();
 
-        $this->assertNotEmpty($serviceOrder->id);
-        $this->assertSame(ServiceOrder::STATUS_RECEBIDA, $serviceOrder->status);
-        $this->assertSame(200.0, $serviceOrder->servicesTotal);
-        $this->assertSame(60.0, $serviceOrder->itemsTotal);
-        $this->assertSame(260.0, $serviceOrder->totalBudget);
+        $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}$/', $order->id);
+        $this->assertSame(ServiceOrder::STATUS_RECEBIDA, $order->status);
+        $this->assertSame(200.0, $order->servicesTotal);
+        $this->assertSame(60.0, $order->itemsTotal);
+        $this->assertSame(260.0, $order->totalBudget);
+        $this->assertFalse($order->isFinal());
     }
 
-    public function test_update_items_recalculates_totals(): void
+    public function test_create_requires_at_least_one_service(): void
     {
-        $serviceOrder = $this->makeServiceOrder();
-
-        $serviceOrder->updateItems(
-            [['service_id' => 'svc-2', 'name' => 'Balanceamento', 'quantity' => 1.0, 'unit_price' => 50.0]],
-            []
-        );
-
-        $this->assertSame(50.0, $serviceOrder->servicesTotal);
-        $this->assertSame(0.0, $serviceOrder->itemsTotal);
-        $this->assertSame(50.0, $serviceOrder->totalBudget);
+        $this->expectException(\DomainException::class);
+        ServiceOrder::create('c', 'v', [], []);
     }
 
-    public function test_change_status_updates_status_when_valid(): void
+    public function test_saga_driven_lifecycle(): void
     {
-        $serviceOrder = $this->makeServiceOrder();
+        $order = $this->makeServiceOrder();
 
-        $serviceOrder->changeStatus(ServiceOrder::STATUS_FINALIZADA);
+        $order->quoteSent('t1');
+        $this->assertSame(ServiceOrder::STATUS_AGUARDANDO_APROVACAO, $order->status);
+        $this->assertSame('t1', $order->quoteSentAt);
 
-        $this->assertSame(ServiceOrder::STATUS_FINALIZADA, $serviceOrder->status);
+        $order->quoteApproved('t2');
+        $this->assertSame(ServiceOrder::STATUS_AGUARDANDO_PAGAMENTO, $order->status);
+        $this->assertSame('t2', $order->quoteApprovedAt);
+
+        $order->paymentConfirmed('t3');
+        $this->assertSame('t3', $order->paidAt);
+        $this->assertSame(ServiceOrder::STATUS_AGUARDANDO_PAGAMENTO, $order->status);
+
+        foreach ([
+            ServiceOrder::STATUS_AGUARDANDO_EXECUCAO,
+            ServiceOrder::STATUS_EM_DIAGNOSTICO,
+            ServiceOrder::STATUS_EM_EXECUCAO,
+            ServiceOrder::STATUS_FINALIZADA,
+            ServiceOrder::STATUS_ENTREGUE,
+        ] as $status) {
+            $order->changeStatus($status);
+            $this->assertSame($status, $order->status);
+        }
+
+        $this->assertTrue($order->isFinal());
     }
 
-    public function test_change_status_throws_when_invalid(): void
+    public function test_cannot_skip_or_go_back(): void
     {
-        $serviceOrder = $this->makeServiceOrder();
+        $order = $this->makeServiceOrder();
 
+        try {
+            $order->changeStatus(ServiceOrder::STATUS_FINALIZADA);
+            $this->fail('nao pode pular etapas');
+        } catch (\DomainException $e) {
+            $this->assertStringContainsString('recebida -> finalizada', $e->getMessage());
+        }
+
+        $order->quoteSent('t');
+        $this->expectException(\DomainException::class);
+        $order->changeStatus(ServiceOrder::STATUS_RECEBIDA);
+    }
+
+    public function test_payment_confirmation_requires_awaiting_payment(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->makeServiceOrder()->paymentConfirmed('t');
+    }
+
+    public function test_cancel_records_reason_and_is_final(): void
+    {
+        $order = $this->makeServiceOrder();
+        $order->cancel('cliente desistiu');
+
+        $this->assertSame(ServiceOrder::STATUS_CANCELADA, $order->status);
+        $this->assertSame('cliente desistiu', $order->cancellationReason);
+        $this->assertTrue($order->isFinal());
+        $this->assertFalse($order->canTransitionTo(ServiceOrder::STATUS_RECEBIDA));
+    }
+
+    public function test_finished_order_cannot_be_cancelled(): void
+    {
+        $order = new ServiceOrder('id', 'c', 'v', [], [], ServiceOrder::STATUS_FINALIZADA, 0, 0, 0);
+
+        $this->expectException(\DomainException::class);
+        $order->cancel('tarde demais');
+    }
+
+    public function test_invalid_status_is_rejected(): void
+    {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Status da OS invalido');
-
-        $serviceOrder->changeStatus('invalido');
+        new ServiceOrder('id', 'c', 'v', [], [], 'voando', 0, 0, 0);
     }
 
-    public function test_send_quote_for_approval_sets_status_and_timestamp(): void
+    public function test_unknown_target_status_is_rejected(): void
     {
-        Carbon::setTestNow('2026-04-27 10:00:00');
-        $serviceOrder = $this->makeServiceOrder();
-
-        $serviceOrder->sendQuoteForApproval();
-
-        $this->assertSame(ServiceOrder::STATUS_AGUARDANDO_APROVACAO, $serviceOrder->status);
-        $this->assertSame('2026-04-27 10:00:00', $serviceOrder->quoteSentAt);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->makeServiceOrder()->changeStatus('voando');
     }
 
-    public function test_send_quote_for_approval_generates_approval_token(): void
+    public function test_allowed_statuses_lists_all(): void
     {
-        $serviceOrder = $this->makeServiceOrder();
-
-        $serviceOrder->sendQuoteForApproval();
-
-        $this->assertNotNull($serviceOrder->approvalToken);
-        $this->assertSame(64, strlen($serviceOrder->approvalToken));
-        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $serviceOrder->approvalToken);
-    }
-
-    public function test_approve_quote_sets_status_and_timestamp(): void
-    {
-        Carbon::setTestNow('2026-04-27 11:00:00');
-        $serviceOrder = $this->makeServiceOrder();
-
-        $serviceOrder->approveQuote();
-
-        $this->assertSame(ServiceOrder::STATUS_EM_EXECUCAO, $serviceOrder->status);
-        $this->assertSame('2026-04-27 11:00:00', $serviceOrder->quoteApprovedAt);
-    }
-
-    public function test_approve_quote_clears_approval_token(): void
-    {
-        $serviceOrder = $this->makeServiceOrder();
-        $serviceOrder->sendQuoteForApproval();
-
-        $this->assertNotNull($serviceOrder->approvalToken);
-
-        $serviceOrder->approveQuote();
-
-        $this->assertNull($serviceOrder->approvalToken);
-    }
-
-    public function test_create_initializes_approval_token_as_null(): void
-    {
-        $serviceOrder = $this->makeServiceOrder();
-
-        $this->assertNull($serviceOrder->approvalToken);
+        $this->assertCount(9, ServiceOrder::allowedStatuses());
+        $this->assertContains(ServiceOrder::STATUS_CANCELADA, ServiceOrder::allowedStatuses());
     }
 }

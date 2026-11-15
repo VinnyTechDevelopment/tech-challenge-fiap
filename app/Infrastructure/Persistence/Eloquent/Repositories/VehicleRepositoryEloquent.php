@@ -2,8 +2,8 @@
 
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
-use App\Domain\Vehicle\Interfaces\VehicleRepositoryInterface;
 use App\Domain\Vehicle\Entities\Vehicle;
+use App\Domain\Vehicle\Interfaces\VehicleRepositoryInterface;
 use App\Domain\Vehicle\ValueObjects\Plate;
 use App\Infrastructure\Persistence\Eloquent\Models\VehicleModel;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +19,7 @@ class VehicleRepositoryEloquent implements VehicleRepositoryInterface
             'year' => $vehicle->year,
             'plate' => $vehicle->plate->getValue(),
             'created_user_id' => Auth::id(),
-            'updated_user_id' => Auth::id()
+            'updated_user_id' => Auth::id(),
         ]);
     }
 
@@ -27,7 +27,7 @@ class VehicleRepositoryEloquent implements VehicleRepositoryInterface
     {
         $model = VehicleModel::where('plate', $plate)->first();
 
-        if (!$model) {
+        if (! $model) {
             return null;
         }
 
@@ -46,8 +46,7 @@ class VehicleRepositoryEloquent implements VehicleRepositoryInterface
             ->skip(($page - 1) * $perPage)
             ->take($perPage)
             ->get()
-            ->toArray()
-        ;
+            ->toArray();
     }
 
     public function findAll(): array
@@ -61,7 +60,7 @@ class VehicleRepositoryEloquent implements VehicleRepositoryInterface
     {
         $model = VehicleModel::find($id);
 
-        if (!$model) {
+        if (! $model) {
             return null;
         }
 
@@ -81,7 +80,7 @@ class VehicleRepositoryEloquent implements VehicleRepositoryInterface
             'model' => $vehicle->model,
             'year' => $vehicle->year,
             'plate' => $vehicle->plate->getValue(),
-            'updated_user_id' => Auth::id()
+            'updated_user_id' => Auth::id(),
         ]);
     }
 

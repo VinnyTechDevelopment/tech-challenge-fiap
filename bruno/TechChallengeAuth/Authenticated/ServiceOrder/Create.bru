@@ -1,5 +1,5 @@
 meta {
-  name: Create Service Order
+  name: Abrir OS (inicia a Saga)
   type: http
   seq: 2
 }
@@ -11,23 +11,20 @@ post {
 }
 
 body:json {
-  {1
+  {
     "customer_id": "{{customerId}}",
     "vehicle_id": "{{vehicleId}}",
     "services": [
-      {
-        "service_id": "{{serviceId}}",
-        "quantity": 1
-      }
+      { "service_id": "{{serviceId}}", "quantity": 1 }
     ],
     "items": [
-      {
-        "item_id": "{{itemId}}",
-        "quantity": 2
-      }
-    ],
-    "send_quote": false
+      { "item_id": "{{itemId}}", "quantity": 2 }
+    ]
   }
+}
+
+docs {
+  Responde 202. Preços vêm do execution-service (REST). O orçamento é gerado de forma assíncrona pelo billing-service (SQS).
 }
 
 settings {

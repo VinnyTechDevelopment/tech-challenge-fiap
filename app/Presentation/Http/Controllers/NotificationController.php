@@ -31,14 +31,14 @@ class NotificationController
         $notification = $useCase->execute($dto);
 
         return response()->json([
-            'id'           => $notification->getId(),
+            'id' => $notification->getId(),
             'recipient_id' => $notification->getRecipientId(),
-            'type'         => $notification->getType()->value,
-            'subject'      => $notification->getSubject(),
-            'content'      => $notification->getContent(),
-            'status'       => $notification->getStatus()->value,
-            'created_at'   => $notification->getCreatedAt()->format('Y-m-d H:i:s'),
-            'sent_at'      => $notification->getSentAt()?->format('Y-m-d H:i:s'),
+            'type' => $notification->getType()->value,
+            'subject' => $notification->getSubject(),
+            'content' => $notification->getContent(),
+            'status' => $notification->getStatus()->value,
+            'created_at' => $notification->getCreatedAt()->format('Y-m-d H:i:s'),
+            'sent_at' => $notification->getSentAt()?->format('Y-m-d H:i:s'),
         ]);
     }
 }

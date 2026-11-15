@@ -1,0 +1,16 @@
+meta {
+  name: Cliente recusa orçamento
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{billingUrl}}/billing/quotes/{{approvalToken}}/reject
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
