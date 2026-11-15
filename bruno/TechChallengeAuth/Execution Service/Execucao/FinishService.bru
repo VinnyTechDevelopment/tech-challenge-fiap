@@ -1,0 +1,16 @@
+meta {
+  name: Apontar fim de um serviço
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{executionUrl}}/execution/{{serviceOrderId}}/services/{{serviceId}}/finish
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

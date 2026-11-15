@@ -27,6 +27,10 @@ docs {
   Responde 202. Preços vêm do execution-service (REST). O orçamento é gerado de forma assíncrona pelo billing-service (SQS).
 }
 
+script:post-response {
+  if (res.getStatus() < 300) bru.setVar('serviceOrderId', res.getBody().service_order.id);
+}
+
 settings {
   encodeUrl: true
   timeout: 0

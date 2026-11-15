@@ -1,0 +1,20 @@
+meta {
+  name: Detalhar pagamento
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{billingUrl}}/billing/payments/{{paymentId}}
+  body: none
+  auth: bearer
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+auth:bearer {
+  token: {{token}}
+}

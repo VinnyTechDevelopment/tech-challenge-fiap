@@ -1,0 +1,16 @@
+meta {
+  name: Movimentações da peça
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{executionUrl}}/catalog/items/{{itemId}}/stock/movements?page=1&perPage=20
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

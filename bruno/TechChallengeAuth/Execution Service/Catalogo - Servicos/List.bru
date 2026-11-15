@@ -1,20 +1,13 @@
 meta {
-  name: Catálogo: criar serviço
+  name: Listar serviços
   type: http
   seq: 1
 }
 
-post {
+get {
   url: {{executionUrl}}/catalog/services
-  body: json
+  body: none
   auth: inherit
-}
-
-body:json {
-  {
-    "name": "Revisao completa",
-    "price": 300
-  }
 }
 
 settings {

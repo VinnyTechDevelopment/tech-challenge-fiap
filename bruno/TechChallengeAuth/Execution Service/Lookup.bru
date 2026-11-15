@@ -1,0 +1,23 @@
+meta {
+  name: Lookup do catálogo (usado pelo os-service)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{executionUrl}}/catalog/lookup
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "services": [ { "service_id": "{{serviceId}}", "quantity": 1 } ],
+    "items": [ { "item_id": "{{itemId}}", "quantity": 2 } ]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

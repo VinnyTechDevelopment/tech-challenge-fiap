@@ -1,0 +1,23 @@
+meta {
+  name: Saída de estoque
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{executionUrl}}/catalog/items/{{itemId}}/stock/withdrawal
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "quantity": 1,
+    "reason": "Uso interno"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

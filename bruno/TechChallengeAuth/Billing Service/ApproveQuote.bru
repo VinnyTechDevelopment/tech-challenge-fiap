@@ -10,8 +10,13 @@ get {
   auth: none
 }
 
+script:post-response {
+  if (res.getStatus() < 300) bru.setVar('paymentId', res.getBody().payment_id);
+  if (res.getStatus() < 300) bru.setVar('paymentUrl', res.getBody().payment_url);
+}
+
 docs {
-  O link completo aparece em saga.approval_url (GET /service-order/{id}). Resposta traz payment_url (Mercado Pago ou simulador).
+  approvalToken é preenchido ao rodar "Detalhar OS". Abra o payment_url no navegador para pagar no Mercado Pago sandbox.
 }
 
 settings {

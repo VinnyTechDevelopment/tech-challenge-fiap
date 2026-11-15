@@ -1,0 +1,16 @@
+meta {
+  name: Apontar início de um serviço
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{executionUrl}}/execution/{{serviceOrderId}}/services/{{serviceId}}/start
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

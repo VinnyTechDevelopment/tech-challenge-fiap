@@ -1,0 +1,22 @@
+meta {
+  name: Atualizar peça
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{executionUrl}}/catalog/items/{{itemId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "unit_price": 49.9
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Atualizar serviço
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{executionUrl}}/catalog/services/{{serviceId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "price": 320
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
