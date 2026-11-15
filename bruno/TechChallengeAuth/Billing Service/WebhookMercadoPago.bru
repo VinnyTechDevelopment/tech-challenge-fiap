@@ -1,0 +1,27 @@
+meta {
+  name: Webhook Mercado Pago (exemplo)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{billingUrl}}/billing/webhooks/mercadopago
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "type": "payment",
+    "data": { "id": "123456789" }
+  }
+}
+
+docs {
+  Chamado pelo Mercado Pago. Sem x-signature válido responde 401 (esperado).
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

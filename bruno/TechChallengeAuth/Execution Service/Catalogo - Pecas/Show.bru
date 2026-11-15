@@ -1,11 +1,11 @@
 meta {
-  name: Fila de execução
+  name: Detalhar peça (estoque atual)
   type: http
-  seq: 5
+  seq: 2
 }
 
 get {
-  url: {{executionUrl}}/execution/queue
+  url: {{executionUrl}}/catalog/items/{{itemId}}
   body: none
   auth: inherit
 }

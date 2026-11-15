@@ -1,0 +1,24 @@
+meta {
+  name: Cliente por CPF (X-Internal-Token)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/internal/customers/by-document/52998224725
+  body: none
+  auth: none
+}
+
+headers {
+  X-Internal-Token: {{internalToken}}
+}
+
+docs {
+  Endpoint usado pela Lambda de CPF. Preencha internalToken com o INTERNAL_API_TOKEN. Pelo API Gateway exige o authorizer; teste direto no os-service.
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -10,6 +10,12 @@ get {
   auth: inherit
 }
 
+script:post-response {
+  const saga = res.getBody().saga || {};
+  if (saga.approval_url) bru.setVar('approvalToken', saga.approval_url.split('/quotes/')[1].split('/')[0]);
+  if (saga.payment_id) bru.setVar('paymentId', saga.payment_id);
+}
+
 settings {
   encodeUrl: true
   timeout: 0

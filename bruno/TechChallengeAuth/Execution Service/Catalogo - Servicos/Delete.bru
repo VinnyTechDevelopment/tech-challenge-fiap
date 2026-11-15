@@ -1,0 +1,16 @@
+meta {
+  name: Remover serviço
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{executionUrl}}/catalog/services/{{serviceId}}
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

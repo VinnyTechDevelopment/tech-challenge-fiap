@@ -1,7 +1,7 @@
 meta {
-  name: Simular pagamento (PAYMENT_GATEWAY=fake)
+  name: Simular pagamento (só PAYMENT_GATEWAY=fake)
   type: http
-  seq: 3
+  seq: 4
 }
 
 post {
@@ -17,7 +17,7 @@ body:json {
 }
 
 docs {
-  Use "rejected" para demonstrar a compensação (CancelQuote).
+  Use "rejected" para demonstrar a compensação. Com o Mercado Pago real responde 404.
 }
 
 settings {

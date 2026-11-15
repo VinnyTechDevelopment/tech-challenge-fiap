@@ -1,13 +1,17 @@
 meta {
   name: Finalizar execução (notifica os-service)
   type: http
-  seq: 8
+  seq: 7
 }
 
 patch {
   url: {{executionUrl}}/execution/{{serviceOrderId}}/finish
-  body: none
+  body: json
   auth: inherit
+}
+
+body:json {
+  {}
 }
 
 settings {

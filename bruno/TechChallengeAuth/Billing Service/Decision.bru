@@ -1,0 +1,22 @@
+meta {
+  name: Decisão por POST (approve | reject)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{billingUrl}}/billing/quotes/{{approvalToken}}/decision
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "decision": "approve"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

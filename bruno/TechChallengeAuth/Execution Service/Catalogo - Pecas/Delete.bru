@@ -1,0 +1,16 @@
+meta {
+  name: Remover peça (só sem estoque)
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{executionUrl}}/catalog/items/{{itemId}}
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

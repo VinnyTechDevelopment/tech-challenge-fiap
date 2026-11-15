@@ -1,0 +1,16 @@
+meta {
+  name: Listar peças
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{executionUrl}}/catalog/items?page=1&perPage=10
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

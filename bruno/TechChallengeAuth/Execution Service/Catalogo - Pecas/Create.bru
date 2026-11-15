@@ -1,7 +1,7 @@
 meta {
-  name: Catálogo: criar peça
+  name: Criar peça
   type: http
-  seq: 2
+  seq: 3
 }
 
 post {
@@ -16,9 +16,17 @@ body:json {
     "code": "FLT-001",
     "type": "part",
     "measure_unit": "un",
-    "minimum_quantity": 2,
+    "minimum_quantity": 1,
     "unit_price": 45.5
   }
+}
+
+script:post-response {
+  if (res.getStatus() < 300) bru.setVar('itemId', res.getBody().id);
+}
+
+docs {
+  O code precisa ser único: troque ao rodar de novo.
 }
 
 settings {
