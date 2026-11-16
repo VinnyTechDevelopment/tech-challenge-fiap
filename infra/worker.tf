@@ -45,6 +45,12 @@ resource "kubernetes_deployment_v1" "worker" {
       }
 
       spec {
+        # hostNetwork: o pod usa a rede do node e alcança o IMDS (credenciais
+        # da LabRole) com o hop limit 1 padrão. No AWS Academy não dá para usar
+        # IRSA nem aumentar o hop limit (launch template customizado é negado).
+        host_network = true
+        dns_policy   = "ClusterFirstWithHostNet"
+
         image_pull_secrets {
           name = kubernetes_secret_v1.ghcr_secret.metadata[0].name
         }
