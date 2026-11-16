@@ -1,6 +1,6 @@
 # Tech Challenge — Fase 4 · Documento de entrega
 
-> Rascunho do PDF entregue no portal. Preencha os campos marcados com ✏️ e exporte para PDF. O diagrama Mermaid renderiza no GitHub; para o PDF, use a imagem exportada de [arquitetura.md](arquitetura.md).
+> Rascunho do PDF entregue no portal. Preencha os campos marcados com ✏️ e exporte para PDF. Para o PDF, use a imagem [arquitetura.png](arquitetura.png).
 
 ## 1. Participantes
 
@@ -26,7 +26,9 @@
 
 ## 4. Arquitetura final
 
-Diagrama completo, com microsserviços, bancos e comunicação: [arquitetura.md](arquitetura.md).
+![Arquitetura da Fase 4](arquitetura.png)
+
+Detalhes e justificativas: [arquitetura.md](arquitetura.md).
 
 - 3 microsserviços Laravel no **EKS**, cada um em namespace próprio, com HPA e NLB.
 - **Um banco por serviço:** RDS MySQL (os-service), RDS MySQL (billing-service), DynamoDB (execution-service). Nenhum serviço acessa o banco de outro; a Lambda de CPF usa um endpoint interno do os-service.
