@@ -18,6 +18,8 @@ A aplicação foi dividida em **3 microsserviços independentes**, cada um com r
 
 A infraestrutura compartilhada continua em [`infra-kubernetes-fiap`](https://github.com/VinnyTechDevelopment/infra-kubernetes-fiap) (VPC, EKS e New Relic do cluster), [`infra-database-fiap`](https://github.com/VinnyTechDevelopment/infra-database-fiap) (RDS deste serviço) e [`lambda-auth-cpf-fiap`](https://github.com/VinnyTechDevelopment/lambda-auth-cpf-fiap) (API Gateway, que agora roteia para os 3 serviços, Lambda de CPF e authorizer).
 
+![Arquitetura da Fase 4](docs/Fase4/arquitetura.png)
+
 - **Arquitetura e justificativa da divisão/tecnologias:** [docs/Fase4/arquitetura.md](docs/Fase4/arquitetura.md)
 - **Saga (decisão e justificativa):** [docs/Fase4/adrs/001-saga-orquestrada.md](docs/Fase4/adrs/001-saga-orquestrada.md)
 - **Diagramas de sequência (caminho feliz e compensações):** [docs/Fase4/diagrama-saga.md](docs/Fase4/diagrama-saga.md)
@@ -131,6 +133,8 @@ Objetivos principais desta fase:
 - Provisionamento com Terraform: veja a seção `Passo a passo` dentro de `Ambiente Kubernetes (EKS + Terraform)`.
 
 ## Desenho da arquitetura proposta
+
+> Diagrama histórico da **Fase 3** (antes da divisão em microsserviços). A arquitetura atual está na seção Fase 4, no topo deste README.
 
 ![Arquitetura da Fase 3](docs/Fase3/workflow.jpg)
 

@@ -2,64 +2,76 @@
 
 ## Visão geral
 
+![Arquitetura da Fase 4](arquitetura.png)
+
+<details><summary>Fonte do diagrama (Mermaid)</summary>
+
 ```mermaid
-flowchart LR
-    cliente([Cliente]) -->|POST /auth/cpf| apigw
+flowchart TB
+    cliente([Cliente]) -->|"POST /auth/cpf<br/>links do orçamento"| apigw
     atendente([Atendente / Mecânico]) -->|JWT funcionário| apigw
-    mp([Mercado Pago]) -->|webhook| apigw
+    mp([Mercado Pago]) -->|webhook de pagamento| apigw
 
-    subgraph AWS["AWS (us-east-1)"]
-        apigw[API Gateway HTTP<br/>+ Lambda authorizer<br/>cliente OU funcionário]
-        lambda[Lambda auth-cpf<br/>Node.js]
+    subgraph AWS["AWS us-east-1"]
+        direction TB
+        apigw["API Gateway HTTP<br/>Lambda authorizer: cliente OU funcionário"]
+        lambda["Lambda auth-cpf<br/>Node.js"]
+        apigw --> lambda
 
-        subgraph EKS["EKS — um namespace por serviço"]
-            os[os-service<br/>Laravel<br/>API + orquestrador da Saga]
-            osw[os-worker<br/>consumer · outbox · scheduler]
-            bill[billing-service<br/>Laravel<br/>orçamento + pagamento]
-            billw[billing-worker<br/>consumer · outbox]
-            exe[execution-service<br/>Laravel<br/>catálogo · estoque · fila]
-            exew[execution-worker<br/>consumer]
+        subgraph EKS["Amazon EKS — um namespace por microsserviço"]
+            direction LR
+            subgraph OSS["os-service (orquestrador da Saga)"]
+                direction TB
+                os["API Laravel<br/>OS · clientes · veículos · auth"]
+                osw["worker<br/>consumer · outbox · scheduler"]
+                osdb[("RDS MySQL")]
+                q1[["SQS os-saga-replies + DLQ"]]
+                os --- osdb
+                osw --- osdb
+                q1 --> osw
+            end
+            subgraph BIL["billing-service"]
+                direction TB
+                bill["API Laravel<br/>orçamento · pagamento"]
+                billw["worker<br/>consumer · outbox"]
+                billdb[("RDS MySQL")]
+                q2[["SQS billing-commands + DLQ"]]
+                bill --- billdb
+                billw --- billdb
+                q2 --> billw
+            end
+            subgraph EXE["execution-service"]
+                direction TB
+                exe["API Laravel<br/>catálogo · estoque · fila de execução"]
+                exew["worker<br/>consumer"]
+                ddb[("DynamoDB")]
+                q3[["SQS execution-commands + DLQ"]]
+                exe --- ddb
+                exew --- ddb
+                q3 --> exew
+            end
         end
-
-        osdb[(RDS MySQL<br/>os-service)]
-        billdb[(RDS MySQL<br/>billing-service)]
-        ddb[(DynamoDB<br/>execution-service)]
-
-        q1[[SQS os-saga-replies<br/>+ DLQ]]
-        q2[[SQS billing-commands<br/>+ DLQ]]
-        q3[[SQS execution-commands<br/>+ DLQ]]
     end
 
-    nr[(New Relic<br/>APM · distributed tracing<br/>logs · K8s · dashboards)]
+    nr[("New Relic<br/>APM · distributed tracing · logs · K8s")]
 
-    apigw --> lambda
-    lambda -->|GET /internal/customers| os
-    apigw -->|/api/*| os
-    apigw -->|/api/billing/*| bill
-    apigw -->|/api/catalog/* /api/execution/*| exe
+    apigw -->|"/api/*"| os
+    apigw -->|"/api/billing/*"| bill
+    apigw -->|"/api/catalog/* · /api/execution/*"| exe
+    lambda -->|"GET /internal/customers"| os
 
-    os -->|REST síncrono: /catalog/lookup| exe
-    os --- osdb
-    osw --- osdb
-    bill --- billdb
-    billw --- billdb
-    exe --- ddb
-    exew --- ddb
-
-    osw -->|comandos| q2
-    osw -->|comandos| q3
-    q1 --> osw
-    q2 --> billw
-    q3 --> exew
+    os -->|"REST síncrono<br/>/catalog/lookup"| exe
+    osw -->|comandos da Saga| q2
+    osw -->|comandos da Saga| q3
     billw -->|respostas| q1
-    exe -->|eventos de execução| q1
     exew -->|respostas| q1
-    bill -->|Checkout Pro / estorno| mp
+    exe -->|eventos de execução| q1
+    bill -->|"Checkout Pro · estorno"| mp
 
-    os -.-> nr
-    bill -.-> nr
-    exe -.-> nr
+    EKS -.->|telemetria| nr
 ```
+
+</details>
 
 **Regra de ouro:** nenhum serviço acessa o banco de outro. A Lambda de CPF, que na Fase 3 lia o MySQL do os-service, agora usa o endpoint interno `GET /api/internal/customers/by-document/{cpf}`, protegido por `X-Internal-Token`.
 
