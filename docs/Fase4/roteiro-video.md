@@ -18,7 +18,7 @@
 ## Antes de gravar
 
 - Lab ligado, credenciais atualizadas e checagem feita (ver o passo a passo de retomada).
-- Abas abertas: diagrama (`docs/Fase4/arquitetura.png`), GitHub da org, Bruno no ambiente **AWS**, Mercado Pago (janela anônima, comprador de teste logado), GitHub Actions, New Relic e um terminal com `kubectl`.
+- Abas abertas: diagrama (`docs/Fase4/arquitetura.png`), GitHub da org, Bruno no ambiente **AWS**, um print do checkout do Mercado Pago (link gerado com `PAYMENT_GATEWAY=mercadopago`), GitHub Actions, New Relic e um terminal com `kubectl`.
 - Catálogo pronto: um serviço e uma peça com **estoque 3** (para o fluxo feliz) e saber que pedir 5 unidades força a falta de peças.
 - Um PR pequeno pronto no billing ou no execution para o bloco de deploy (ex.: uma linha no README).
 
@@ -68,13 +68,13 @@
 
 > O os-service publicou um comando no SQS pedindo o orçamento ao billing-service. Se eu consultar a OS agora, ela já está em **aguardando aprovação**, e a saga traz o link de aprovação que o cliente recebe por e-mail.
 >
-> Vou abrir esse link como se fosse o cliente. O billing registra a aprovação e cria a cobrança no Mercado Pago. A OS passa para **aguardando pagamento**.
+> Vou abrir esse link como se fosse o cliente. O billing registra a aprovação e cria a cobrança. A OS passa para **aguardando pagamento**.
 
 **3. Pagamento**
 
-> Agora o cliente paga pelo Mercado Pago, aqui com um cartão de teste no ambiente sandbox.
+> O billing é integrado ao Mercado Pago: com o gateway real, ele cria a preferência de pagamento e devolve este link de checkout *(mostrar o print)*. Quando o cliente paga, o Mercado Pago chama o webhook do billing, que valida a assinatura da notificação e reconsulta o pagamento na API antes de avisar a Saga.
 >
-> Quando o pagamento é aprovado, o Mercado Pago chama o webhook do billing. O billing valida a assinatura da notificação, consulta o pagamento na API do Mercado Pago para confirmar, e avisa a Saga.
+> O sandbox do Mercado Pago recusou as nossas credenciais de teste, então nesta demonstração o gateway está configurado como **simulador** — uma variável de ambiente troca um pelo outro, sem mudar código. Vou simular a aprovação do pagamento. A partir daqui o fluxo é exatamente o mesmo: o billing confirma o pagamento e avisa a Saga.
 
 **4. Execução**
 
@@ -96,7 +96,7 @@
 >
 > Vou abrir uma nova OS pedindo cinco unidades do filtro, mas só tem uma em estoque. O cliente aprova e paga normalmente — nesse ponto, o dinheiro já foi cobrado.
 >
-> Quando o execution-service tenta reservar as peças, a reserva falha por falta de estoque. Ele responde com uma falha, e o orquestrador entra em **compensação**: manda o billing-service **estornar o pagamento** no Mercado Pago. Só quando o estorno é confirmado a OS é cancelada, com o motivo registrado.
+> Quando o execution-service tenta reservar as peças, a reserva falha por falta de estoque. Ele responde com uma falha, e o orquestrador entra em **compensação**: manda o billing-service **estornar o pagamento** — com o gateway real, um estorno na API do Mercado Pago. Só quando o estorno é confirmado a OS é cancelada, com o motivo registrado.
 >
 > No histórico da saga dá para ver exatamente isso: a reserva falhou, a compensação de estorno começou e foi concluída, e a saga terminou como cancelada. O pagamento consta como estornado no billing, e o estoque continua intacto, porque a reserva atômica não baixou nada.
 >
@@ -138,7 +138,10 @@
 
 ---
 
-## Plano B (se o Mercado Pago não colaborar na hora)
+## Pagamento na demonstração
 
-- Mostre a integração real até o link de checkout do Mercado Pago e, para o restante do fluxo, troque temporariamente o billing para `PAYMENT_GATEWAY=fake`: o link de pagamento vira o simulador (`Simular pagamento` no Bruno, `approved` ou `rejected`). Explique: *"a integração com o Mercado Pago está no código e nos testes; aqui usamos o simulador para demonstrar a Saga sem depender do sandbox"*.
+- O deploy usa `PAYMENT_GATEWAY=fake` por padrão: o link de pagamento é o simulador (**Simular pagamento** no Bruno, `approved` ou `rejected`).
+- Para o print do checkout real: crie a variável de repositório `PAYMENT_GATEWAY=mercadopago` no billing, rode o deploy, aprove uma OS e capture o link `www.mercadopago.com.br/...`; depois apague a variável e rode o deploy de novo.
+
+## Plano B (sem AWS)
 - Local, sem AWS: `docker compose -f docker-compose.microservices.yml up -d` e `php scripts/e2e-saga.php` executam e narram os dois cenários (fluxo feliz e falta de peças).
